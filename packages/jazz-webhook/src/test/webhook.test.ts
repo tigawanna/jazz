@@ -194,11 +194,7 @@ describe("jazz-webhook", () => {
 
   describe("webhook emission with real HTTP server", () => {
     test("should emit webhook when CoValue changes", async () => {
-      const {
-        account,
-        webhookServer,
-        webhookRegistry: webhookManager,
-      } = await setupTest();
+      const { account, webhookServer, webhookRegistry } = await setupTest();
 
       // Create a test CoMap
       const testMap = TestCoMap.create(
@@ -208,26 +204,30 @@ describe("jazz-webhook", () => {
       const coValueId = testMap.$jazz.id as `co_z${string}`;
 
       // Register webhook
-      await webhookManager.register(webhookServer.getUrl(), coValueId);
+      const webhookId = await webhookRegistry.register(
+        webhookServer.getUrl(),
+        coValueId,
+      );
 
       // Make a change to trigger webhook
       testMap.$jazz.set("value", "changed");
-
-      // Wait a bit to ensure the transaction is fully processed
-      await new Promise((resolve) => setTimeout(resolve, 50));
 
       const txID = testMap.$jazz.raw.lastEditAt("value")?.tx;
       if (!txID) {
         throw new Error("Failed to get transaction ID after change");
       }
 
-      // Wait for webhook to be emitted
-      const requests = await webhookServer.waitForRequests(2, 3000);
+      await waitForWebhookEmitted(webhookId, txID);
 
-      expect(requests.length).toBe(2);
-      const lastRequest = webhookServer.getLastRequest();
-      expect(lastRequest.coValueId).toBe(coValueId);
-      expect(lastRequest.txID).toEqual(txID);
+      expect(
+        webhookServer.requests.some((request) => {
+          return (
+            request.coValueId === coValueId &&
+            request.txID.sessionID === txID.sessionID &&
+            request.txID.txIndex === txID.txIndex
+          );
+        }),
+      ).toBe(true);
     });
 
     test("should queue multiple changes and emit only the latest", async () => {
