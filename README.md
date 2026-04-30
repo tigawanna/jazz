@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> This is Classic Jazz - we recommend using Jazz v2 for new projects ([repo](https://github.com/garden-co/jazz), [homepage](https://jazz.tools), [what's different](https://jazz.tools/blog/what-we-learned-from-classic-jazz))
+
 # Jazz - The database that syncs
 
 **Jazz is a new kind of distributed database that runs across your frontend, containers, serverless functions and its own cloud.**
@@ -10,7 +13,7 @@ Self-host or use Jazz Cloud for zero-config magic. Open source (MIT)
 
 ## Getting started
 
-We recommend reading the [homepage](https://jazz.tools) and [docs](https://jazz.tools/docs) to get an overview of what Jazz is and how it works.
+We recommend reading the [homepage](https://classic.jazz.tools) and [docs](https://classic.jazz.tools/docs) to get an overview of what Jazz is and how it works.
 
 If you're interested in contributing, please read [CONTRIBUTING.md](./CONTRIBUTING.md).
 
@@ -18,8 +21,8 @@ For community and support, please join our [Discord](https://discord.gg/utDMjHYg
 
 ---
 
-- Homepage: [jazz.tools](https://jazz.tools)
-- Docs: [jazz.tools/docs](https://jazz.tools/docs)
+- Homepage: [classic.jazz.tools](https://classic.jazz.tools)
+- Docs: [classic.jazz.tools/docs](https://classic.jazz.tools/docs)
 - Community & support: [Discord](https://discord.gg/utDMjHYg42)
 - Updates: [X](https://x.com/jazz_tools) & [Email](https://garden.co/news)
 
