@@ -1,6 +1,15 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import { SyncMessagesLog, setupTestNode, waitFor } from "./testUtils";
+import { WasmCrypto } from "../crypto/WasmCrypto.js";
+import { LocalNode } from "../localNode";
+import {
+  SyncMessagesLog,
+  getSyncServerConnectedPeer,
+  setupTestNode,
+  waitFor,
+} from "./testUtils";
 import { registerStorageCleanupRunner } from "./testStorage";
+
+const Crypto = await WasmCrypto.create();
 
 let jazzCloud: ReturnType<typeof setupTestNode>;
 
@@ -215,5 +224,59 @@ describe("local store durability window", () => {
       5000,
     );
     expect(events).toEqual([true]); // opened, never closed
+  });
+});
+
+describe("LocalNode creation options", () => {
+  test("withNewlyCreatedAccount wires onLocalStoreDurabilityChange before first sync", async () => {
+    const listener = vi.fn();
+
+    const { node } = await LocalNode.withNewlyCreatedAccount({
+      creationProps: { name: "test" },
+      crypto: Crypto,
+      peers: [],
+      onLocalStoreDurabilityChange: listener,
+    });
+
+    expect(node.syncManager.onLocalStoreDurabilityChange).toBe(listener);
+    await node.gracefulShutdown();
+  });
+
+  test("withLoadedAccount wires onLocalStoreDurabilityChange", async () => {
+    const listener = vi.fn();
+
+    const created = await LocalNode.withNewlyCreatedAccount({
+      creationProps: { name: "test" },
+      crypto: Crypto,
+      peers: [],
+    });
+
+    const connected = setupTestNode({ isSyncServer: true });
+    void connected; // ensure a sync server exists for the load
+
+    const { peer } = getSyncServerConnectedPeer({
+      peerId: created.accountID,
+    });
+
+    // Sync the account to the server so it can be loaded
+    created.node.syncManager.addPeer(peer);
+    await created.node.syncManager.waitForAllCoValuesSync();
+
+    const { peer: peer2 } = getSyncServerConnectedPeer({
+      peerId: "loadingNode" as never,
+    });
+
+    const node = await LocalNode.withLoadedAccount({
+      accountID: created.accountID,
+      accountSecret: created.accountSecret,
+      sessionID: undefined,
+      peers: [peer2],
+      crypto: Crypto,
+      onLocalStoreDurabilityChange: listener,
+    });
+
+    expect(node.syncManager.onLocalStoreDurabilityChange).toBe(listener);
+    await node.gracefulShutdown();
+    await created.node.gracefulShutdown();
   });
 });
