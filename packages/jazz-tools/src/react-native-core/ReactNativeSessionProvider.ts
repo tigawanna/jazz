@@ -19,6 +19,8 @@ export class ReactNativeSessionProvider implements SessionProvider {
     const kvStore = KvStoreContext.getInstance().getStorage();
     let existingSession = await kvStore.get(accountID as string);
 
+    let abandonedDirtySession: SessionID | undefined;
+
     if (
       existingSession &&
       (await ReactNativeSessionDurabilityMarker.isSet(
@@ -27,9 +29,10 @@ export class ReactNativeSessionProvider implements SessionProvider {
     ) {
       // The previous run crashed while it had transactions sent to a sync
       // server but not yet persisted locally: reusing this session could fork
-      // its hash chain. Abandon it and fall through to minting a fresh one
-      // (which overwrites the kv entry below).
-      ReactNativeSessionDurabilityMarker.clear(existingSession as SessionID);
+      // its hash chain. Abandon it and fall through to minting a fresh one.
+      // The marker is cleared only AFTER the new session overwrites the kv
+      // entry, so a crash in between still leaves the session marked dirty.
+      abandonedDirtySession = existingSession as SessionID;
       existingSession = null;
     }
 
@@ -38,6 +41,9 @@ export class ReactNativeSessionProvider implements SessionProvider {
         accountID as RawAccountID | AgentID,
       );
       await kvStore.set(accountID, newSessionID);
+      if (abandonedDirtySession) {
+        ReactNativeSessionDurabilityMarker.clear(abandonedDirtySession);
+      }
       lockedSessions.add(newSessionID);
 
       console.log("Created new session", newSessionID);

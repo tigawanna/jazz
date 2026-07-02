@@ -304,7 +304,8 @@ describe("ReactNativeSessionProvider", () => {
         accountID as unknown as RawAccountID,
       );
       await kvStore.set(accountID, dirtySession);
-      await ReactNativeSessionDurabilityMarker.set(dirtySession);
+      ReactNativeSessionDurabilityMarker.set(dirtySession);
+      await new Promise((r) => setTimeout(r, 0));
 
       const result = await sessionProvider.acquireSession(
         accountID,

@@ -13,12 +13,20 @@ function markerKey(sessionID: SessionID) {
  */
 export const ReactNativeSessionDurabilityMarker: SessionDurabilityMarker = {
   set(sessionID: SessionID) {
-    void KvStoreContext.getInstance()
+    KvStoreContext.getInstance()
       .getStorage()
-      .set(markerKey(sessionID), "1");
+      .set(markerKey(sessionID), "1")
+      .catch((err) =>
+        console.warn("Failed to set session durability marker", err),
+      );
   },
   clear(sessionID: SessionID) {
-    void KvStoreContext.getInstance().getStorage().delete(markerKey(sessionID));
+    KvStoreContext.getInstance()
+      .getStorage()
+      .delete(markerKey(sessionID))
+      .catch((err) =>
+        console.warn("Failed to clear session durability marker", err),
+      );
   },
   async isSet(sessionID: SessionID) {
     const value = await KvStoreContext.getInstance()
