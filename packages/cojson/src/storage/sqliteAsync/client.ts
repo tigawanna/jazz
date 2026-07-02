@@ -95,8 +95,14 @@ export class SQLiteTransactionAsync implements DBTransactionInterfaceAsync {
     nextIdx: number,
     newTransaction: Transaction,
   ): Promise<void> {
+    // An interrupted write transaction (e.g. a concurrent ROLLBACK on a shared
+    // connection) can leave orphan rows with idx >= the session's lastIdx.
+    // A session's transaction at a given idx is canonical, so overwriting is
+    // safe and lets the session recover instead of failing on the primary key
+    // forever.
     await this.tx.run(
-      "INSERT INTO transactions (ses, idx, tx) VALUES (?, ?, ?)",
+      `INSERT INTO transactions (ses, idx, tx) VALUES (?, ?, ?)
+       ON CONFLICT(ses, idx) DO UPDATE SET tx=excluded.tx`,
       [sessionRowID, nextIdx, JSON.stringify(newTransaction)],
     );
   }
@@ -110,8 +116,12 @@ export class SQLiteTransactionAsync implements DBTransactionInterfaceAsync {
     idx: number;
     signature: Signature;
   }): Promise<void> {
+    // Same recovery rationale as addTransaction: the signature at a given
+    // (ses, idx) is canonical, so overwrite orphan rows left by interrupted
+    // write transactions.
     await this.tx.run(
-      "INSERT INTO signatureAfter (ses, idx, signature) VALUES (?, ?, ?)",
+      `INSERT INTO signatureAfter (ses, idx, signature) VALUES (?, ?, ?)
+       ON CONFLICT(ses, idx) DO UPDATE SET signature=excluded.signature`,
       [sessionRowID, idx, signature],
     );
   }

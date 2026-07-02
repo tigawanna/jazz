@@ -2,6 +2,15 @@ import { beforeEach, describe, expect, test } from "vitest";
 import { getDbPath } from "./testStorage.js";
 import { setupTestNode } from "./testUtils.js";
 import { DBClientInterfaceAsync } from "../exports.js";
+import type { Transaction } from "../coValueCore/verifiedState.js";
+
+function makeTrustingTransaction(changes: string) {
+  return {
+    privacy: "trusting",
+    madeAt: 0,
+    changes,
+  } as unknown as Transaction;
+}
 
 describe("SQLiteClientAsync", () => {
   describe("transaction", () => {
@@ -50,18 +59,12 @@ describe("SQLiteClientAsync", () => {
           signature: `signature_z0`,
         });
       });
-      // Second transaction fails (duplicate primary key)
+      // Second transaction fails
       await expect(
-        dbClient.transaction(async (tx) => {
-          return tx.addSignatureAfter({
-            sessionRowID: 0,
-            idx: 0,
-            signature: `signature_z0`,
-          });
+        dbClient.transaction(async () => {
+          throw new Error("transaction failed");
         }),
-      ).rejects.toThrow(
-        /UNIQUE constraint failed: signatureAfter\.ses, signatureAfter\.idx/,
-      );
+      ).rejects.toThrow("transaction failed");
       // Third transaction succeeds
       await dbClient.transaction(async (tx) => {
         return tx.addSignatureAfter({
@@ -70,6 +73,48 @@ describe("SQLiteClientAsync", () => {
           signature: `signature_z1`,
         });
       });
+    });
+
+    test("addTransaction overwrites an orphan row at the same (ses, idx)", async () => {
+      // Simulates a row left behind by an interrupted write transaction:
+      // the session row was rolled back but the transaction row persisted.
+      await dbClient.transaction(async (tx) => {
+        return tx.addTransaction(1, 0, makeTrustingTransaction("orphan"));
+      });
+
+      await expect(
+        dbClient.transaction(async (tx) => {
+          return tx.addTransaction(1, 0, makeTrustingTransaction("recovered"));
+        }),
+      ).resolves.not.toThrow();
+
+      const txs = await dbClient.getNewTransactionInSession(1, 0, 0);
+      expect(txs).toHaveLength(1);
+      expect(txs[0]?.tx).toEqual(makeTrustingTransaction("recovered"));
+    });
+
+    test("addSignatureAfter overwrites an orphan row at the same (ses, idx)", async () => {
+      await dbClient.transaction(async (tx) => {
+        return tx.addSignatureAfter({
+          sessionRowID: 1,
+          idx: 0,
+          signature: "signature_zorphan",
+        });
+      });
+
+      await expect(
+        dbClient.transaction(async (tx) => {
+          return tx.addSignatureAfter({
+            sessionRowID: 1,
+            idx: 0,
+            signature: "signature_zrecovered",
+          });
+        }),
+      ).resolves.not.toThrow();
+
+      const signatures = await dbClient.getSignatures(1, 0);
+      expect(signatures).toHaveLength(1);
+      expect(signatures[0]?.signature).toBe("signature_zrecovered");
     });
   });
 });
