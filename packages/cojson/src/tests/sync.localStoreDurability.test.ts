@@ -98,6 +98,29 @@ describe("local store durability window", () => {
     expect(events.at(-1)!.hasPending).toBe(false);
   });
 
+  test("reopens for a new local edit after the previous window closed", async () => {
+    const client = setupTestNode();
+    await client.addAsyncStorage();
+    client.connectToSyncServer();
+
+    const events: boolean[] = [];
+    client.node.syncManager.onLocalStoreDurabilityChange = (hasPending) => {
+      events.push(hasPending);
+    };
+
+    const group = client.node.createGroup();
+    const map = group.createMap();
+    map.set("hello", "world", "trusting");
+
+    // First window: opened and closed once storage drained
+    await waitFor(() => expect(events).toEqual([true, false]));
+
+    // A second local edit reopens the window and it closes again on drain
+    map.set("second", "batch", "trusting");
+
+    await waitFor(() => expect(events).toEqual([true, false, true, false]));
+  });
+
   test("reports the node's current session ID", async () => {
     const client = setupTestNode();
     await client.addAsyncStorage();

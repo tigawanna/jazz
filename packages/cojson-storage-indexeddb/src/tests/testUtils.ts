@@ -50,34 +50,43 @@ export function trackMessages() {
     );
   };
 
-  StorageApiAsync.prototype.store = async function (data, correctionCallback) {
+  StorageApiAsync.prototype.store = async function (
+    data,
+    correctionCallback,
+    done,
+  ) {
     messages.push({
       from: "client",
       msg: data,
     });
 
-    return originalStore.call(this, data, (msg) => {
-      messages.push({
-        from: "storage",
-        msg: {
-          action: "known",
-          isCorrection: true,
-          ...msg,
-        },
-      });
-      const correctionMessages = correctionCallback(msg);
+    return originalStore.call(
+      this,
+      data,
+      (msg) => {
+        messages.push({
+          from: "storage",
+          msg: {
+            action: "known",
+            isCorrection: true,
+            ...msg,
+          },
+        });
+        const correctionMessages = correctionCallback(msg);
 
-      if (correctionMessages) {
-        for (const msg of correctionMessages) {
-          messages.push({
-            from: "client",
-            msg,
-          });
+        if (correctionMessages) {
+          for (const msg of correctionMessages) {
+            messages.push({
+              from: "client",
+              msg,
+            });
+          }
         }
-      }
 
-      return correctionMessages;
-    });
+        return correctionMessages;
+      },
+      done,
+    );
   };
 
   const restore = () => {

@@ -1439,24 +1439,38 @@ export class SyncManager {
    *
    * With synchronous storage the store completes inline, the counter is back
    * to 0 before any send, and the listener never fires.
+   *
+   * Exceptions thrown by the listener are caught and logged so they can't
+   * disrupt the sync/store flow.
    */
   onLocalStoreDurabilityChange?: LocalStoreDurabilityListener;
   private pendingLocalStores = 0;
   private localStoreDurabilityWindowOpen = false;
+
+  private emitLocalStoreDurabilityChange(hasPending: boolean) {
+    try {
+      this.onLocalStoreDurabilityChange?.(
+        hasPending,
+        this.local.currentSessionID,
+      );
+    } catch (err) {
+      logger.error("Error in onLocalStoreDurabilityChange listener", { err });
+    }
+  }
 
   private handleLocalStoreDone = () => {
     this.pendingLocalStores--;
 
     if (this.pendingLocalStores === 0 && this.localStoreDurabilityWindowOpen) {
       this.localStoreDurabilityWindowOpen = false;
-      this.onLocalStoreDurabilityChange?.(false, this.local.currentSessionID);
+      this.emitLocalStoreDurabilityChange(false);
     }
   };
 
   private openLocalStoreDurabilityWindow() {
     if (this.pendingLocalStores > 0 && !this.localStoreDurabilityWindowOpen) {
       this.localStoreDurabilityWindowOpen = true;
-      this.onLocalStoreDurabilityChange?.(true, this.local.currentSessionID);
+      this.emitLocalStoreDurabilityChange(true);
     }
   }
 
