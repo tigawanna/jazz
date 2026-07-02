@@ -24,6 +24,7 @@ function mockMarker() {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe("makeDurabilityMarkerListener", () => {
@@ -58,6 +59,20 @@ describe("makeDurabilityMarkerListener", () => {
     listener(true, sessionID);
     listener(false, sessionID);
     listener(true, sessionID); // window re-opens within the debounce
+    vi.advanceTimersByTime(500);
+
+    expect(marker.clear).not.toHaveBeenCalled();
+  });
+
+  test("consecutive clears don't leave an orphaned timer that clears a fresh set", () => {
+    vi.useFakeTimers();
+    const marker = mockMarker();
+    const listener = makeDurabilityMarkerListener(marker, 200);
+
+    listener(true, sessionID);
+    listener(false, sessionID);
+    listener(false, sessionID); // must supersede (not orphan) the first timer
+    listener(true, sessionID); // window re-opens: no clear may fire anymore
     vi.advanceTimersByTime(500);
 
     expect(marker.clear).not.toHaveBeenCalled();
@@ -104,15 +119,13 @@ describe("createContext wiring", () => {
       sessionProvider: provider,
       asActiveAccount: false,
     });
+    context.done();
 
     expect(spy).toHaveBeenCalledWith(
       expect.objectContaining({
         onLocalStoreDurabilityChange: expect.any(Function),
       }),
     );
-
-    context.done();
-    spy.mockRestore();
   });
 
   test("passes no listener when the provider has no marker", async () => {
@@ -135,14 +148,12 @@ describe("createContext wiring", () => {
       sessionProvider: new MockSessionProvider(),
       asActiveAccount: false,
     });
+    context.done();
 
     expect(spy).toHaveBeenCalledWith(
       expect.objectContaining({
         onLocalStoreDurabilityChange: undefined,
       }),
     );
-
-    context.done();
-    spy.mockRestore();
   });
 });

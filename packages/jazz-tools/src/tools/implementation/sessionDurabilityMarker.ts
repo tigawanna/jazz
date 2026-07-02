@@ -1,4 +1,4 @@
-import type { SessionID } from "cojson";
+import type { LocalStoreDurabilityListener, SessionID } from "cojson";
 
 /**
  * Persists a per-session "dirty" flag that survives crashes.
@@ -31,16 +31,16 @@ export const SESSION_DURABILITY_CLEAR_DEBOUNCE_MS = 200;
 export function makeDurabilityMarkerListener(
   marker: SessionDurabilityMarker,
   clearDebounceMs: number = SESSION_DURABILITY_CLEAR_DEBOUNCE_MS,
-): (hasPending: boolean, sessionID: SessionID) => void {
+): LocalStoreDurabilityListener {
   let clearTimer: ReturnType<typeof setTimeout> | undefined;
 
   return (hasPending, sessionID) => {
-    if (hasPending) {
-      if (clearTimer !== undefined) {
-        clearTimeout(clearTimer);
-        clearTimer = undefined;
-      }
+    if (clearTimer !== undefined) {
+      clearTimeout(clearTimer);
+      clearTimer = undefined;
+    }
 
+    if (hasPending) {
       try {
         marker.set(sessionID);
       } catch (err) {
