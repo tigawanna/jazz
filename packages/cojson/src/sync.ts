@@ -53,6 +53,11 @@ export type KnownStateMessage = {
   asDependencyOf?: RawCoID;
 } & CoValueKnownState;
 
+export type LocalStoreDurabilityListener = (
+  hasPending: boolean,
+  sessionID: SessionID,
+) => void;
+
 export type NewContentMessage = {
   action: "content";
   id: RawCoID;
@@ -1424,10 +1429,44 @@ export class SyncManager {
   syncLocalTransaction = this.syncQueue.syncTransaction;
   trackDirtyCoValues = this.syncQueue.trackDirtyCoValues;
 
+  /**
+   * Tracks locally-created content that has been handed to async storage but
+   * is not yet durably stored. If such content is also sent to a peer and the
+   * process crashes before the write completes, local storage ends up behind
+   * what the server received for this session — reusing the session after
+   * restart would then fork its hash chain. The listener lets the platform
+   * layer mark the session as unsafe to reuse while that window is open.
+   *
+   * With synchronous storage the store completes inline, the counter is back
+   * to 0 before any send, and the listener never fires.
+   */
+  onLocalStoreDurabilityChange?: LocalStoreDurabilityListener;
+  private pendingLocalStores = 0;
+  private localStoreDurabilityWindowOpen = false;
+
+  private handleLocalStoreDone = () => {
+    this.pendingLocalStores--;
+
+    if (this.pendingLocalStores === 0 && this.localStoreDurabilityWindowOpen) {
+      this.localStoreDurabilityWindowOpen = false;
+      this.onLocalStoreDurabilityChange?.(false, this.local.currentSessionID);
+    }
+  };
+
+  private openLocalStoreDurabilityWindow() {
+    if (this.pendingLocalStores > 0 && !this.localStoreDurabilityWindowOpen) {
+      this.localStoreDurabilityWindowOpen = true;
+      this.onLocalStoreDurabilityChange?.(true, this.local.currentSessionID);
+    }
+  }
+
   syncContent(content: NewContentMessage) {
     const coValue = this.local.getCoValue(content.id);
 
-    this.storeContent(content);
+    if (this.local.storage) {
+      this.pendingLocalStores++;
+      this.storeContent(content, this.handleLocalStoreDone);
+    }
 
     this.trackSyncState(coValue.id);
 
@@ -1446,6 +1485,10 @@ export class SyncManager {
         peer.emitCoValueChange(content.id);
         continue;
       }
+
+      // The content is about to leave the node while its local store may still
+      // be pending: mark the session as unsafe to reuse until storage drains.
+      this.openLocalStoreDurabilityWindow();
 
       // We assume that the peer already knows anything before this content
       // Any eventual reconciliation will be handled through the known state messages exchange
@@ -1498,7 +1541,7 @@ export class SyncManager {
     }
   }
 
-  private storeContent(content: NewContentMessage) {
+  private storeContent(content: NewContentMessage, onStored?: () => void) {
     const storage = this.local.storage;
 
     if (!storage) return;
@@ -1513,22 +1556,26 @@ export class SyncManager {
 
     // Try to store the content as-is for performance
     // In case that some transactions are missing, a correction will be requested, but it's an edge case
-    storage.store(content, (correction) => {
-      if (!value.verified) {
-        logger.error(
-          "Correction requested for a CoValue with no verified content",
-          {
-            id: content.id,
-            content: getContenDebugInfo(content),
-            correction,
-            state: value.loadingState,
-          },
-        );
-        return undefined;
-      }
+    storage.store(
+      content,
+      (correction) => {
+        if (!value.verified) {
+          logger.error(
+            "Correction requested for a CoValue with no verified content",
+            {
+              id: content.id,
+              content: getContenDebugInfo(content),
+              correction,
+              state: value.loadingState,
+            },
+          );
+          return undefined;
+        }
 
-      return value.newContentSince(correction);
-    });
+        return value.newContentSince(correction);
+      },
+      onStored,
+    );
   }
 
   /**
