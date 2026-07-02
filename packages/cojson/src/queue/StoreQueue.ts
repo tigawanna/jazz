@@ -6,6 +6,8 @@ import { LinkedList } from "./LinkedList.js";
 type StoreQueueEntry = {
   data: NewContentMessage;
   correctionCallback: CorrectionCallback;
+  // Pass-through only: the queue never invokes this itself, it's forwarded
+  // to the processing callback which decides when (and whether) to call it.
   done?: () => void;
 };
 
