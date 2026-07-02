@@ -6,6 +6,7 @@ import { LinkedList } from "./LinkedList.js";
 type StoreQueueEntry = {
   data: NewContentMessage;
   correctionCallback: CorrectionCallback;
+  done?: () => void;
 };
 
 class StoreQueueManager {
@@ -43,12 +44,16 @@ export class StoreQueue {
   private queue = new LinkedList<StoreQueueEntry>();
   closed = false;
 
-  public push(data: NewContentMessage, correctionCallback: CorrectionCallback) {
+  public push(
+    data: NewContentMessage,
+    correctionCallback: CorrectionCallback,
+    done?: () => void,
+  ) {
     if (this.closed) {
       return;
     }
 
-    this.queue.push({ data, correctionCallback });
+    this.queue.push({ data, correctionCallback, done });
   }
 
   public pull() {
@@ -62,6 +67,7 @@ export class StoreQueue {
     callback: (
       data: NewContentMessage,
       correctionCallback: CorrectionCallback,
+      done?: () => void,
     ) => Promise<unknown>,
   ) {
     if (this.processing) {
@@ -74,10 +80,10 @@ export class StoreQueue {
       let entry: StoreQueueEntry | undefined;
 
       while ((entry = this.pull())) {
-        const { data, correctionCallback } = entry;
+        const { data, correctionCallback, done } = entry;
 
         try {
-          this.lastCallback = callback(data, correctionCallback);
+          this.lastCallback = callback(data, correctionCallback, done);
           await this.lastCallback;
         } catch (err) {
           logger.error("Error processing message in store queue", { err });
