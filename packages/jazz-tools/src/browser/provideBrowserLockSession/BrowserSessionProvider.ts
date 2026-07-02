@@ -4,7 +4,7 @@ import { SessionIDStorage } from "./SessionIDStorage";
 import { BrowserSessionDurabilityMarker } from "./BrowserSessionDurabilityMarker";
 
 export class BrowserSessionProvider implements SessionProvider {
-  durabilityMarker = BrowserSessionDurabilityMarker;
+  readonly durabilityMarker = BrowserSessionDurabilityMarker;
 
   async acquireSession(
     accountID: ID<Account> | AgentID,
@@ -129,14 +129,25 @@ function storeSessionID(
       }
 
       if (replaceSlot) {
-        // Overwrite the abandoned dirty slot so the session list doesn't grow
-        // across crashes, and drop the stale marker.
+        const sessionsList = SessionIDStorage.getSessionsList(accountID);
+        if (sessionsList[replaceSlot.index] === replaceSlot.sessionID) {
+          // Overwrite the abandoned dirty slot so the session list doesn't grow
+          // across crashes, and drop the stale marker.
+          SessionIDStorage.storeSessionID(
+            accountID,
+            sessionID,
+            replaceSlot.index,
+          );
+          BrowserSessionDurabilityMarker.clear(replaceSlot.sessionID);
+          return;
+        }
+        // Slot was already reclaimed by a concurrent tab: keep its entry and append instead.
+        BrowserSessionDurabilityMarker.clear(replaceSlot.sessionID);
         SessionIDStorage.storeSessionID(
           accountID,
           sessionID,
-          replaceSlot.index,
+          sessionsList.length,
         );
-        BrowserSessionDurabilityMarker.clear(replaceSlot.sessionID);
         return;
       }
 

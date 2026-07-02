@@ -454,5 +454,43 @@ describe("BrowserSessionProvider", () => {
       BrowserSessionDurabilityMarker.clear(id);
       expect(BrowserSessionDurabilityMarker.isSet(id)).toBe(false);
     });
+
+    test("concurrent acquireSession reclaims dirty slot without orphaning sessions", async () => {
+      const provider = new BrowserSessionProvider();
+      const accountID = "co_zconcurrent" as any;
+
+      // A dirty session left behind at slot 0
+      const dirtySession = Crypto.newRandomSessionID(accountID) as SessionID;
+      SessionIDStorage.storeSessionID(accountID, dirtySession, 0);
+      BrowserSessionDurabilityMarker.set(dirtySession);
+
+      // Two concurrent acquireSession calls for the same account
+      const [result1, result2] = await Promise.all([
+        provider.acquireSession(accountID, Crypto as CryptoProvider),
+        provider.acquireSession(accountID, Crypto as CryptoProvider),
+      ]);
+
+      const { sessionID: sid1, sessionDone: done1 } = result1;
+      const { sessionID: sid2, sessionDone: done2 } = result2;
+
+      // Both sessions differ from the dirty one
+      expect(sid1).not.toBe(dirtySession);
+      expect(sid2).not.toBe(dirtySession);
+
+      // The two new sessions are distinct
+      expect(sid1).not.toBe(sid2);
+
+      // The dirty marker is cleared
+      expect(BrowserSessionDurabilityMarker.isSet(dirtySession)).toBe(false);
+
+      // Session list has exactly 2 entries (slot 0 replaced + one appended)
+      const sessionsList = SessionIDStorage.getSessionsList(accountID);
+      expect(sessionsList).toHaveLength(2);
+      expect(sessionsList).toContain(sid1);
+      expect(sessionsList).toContain(sid2);
+
+      done1();
+      done2();
+    });
   });
 });
