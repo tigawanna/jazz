@@ -228,7 +228,7 @@ describe("local store durability window", () => {
 });
 
 describe("LocalNode creation options", () => {
-  test("withNewlyCreatedAccount wires onLocalStoreDurabilityChange before first sync", async () => {
+  test("withNewlyCreatedAccount wires onLocalStoreDurabilityChange into the node's syncManager", async () => {
     const listener = vi.fn();
 
     const { node } = await LocalNode.withNewlyCreatedAccount({
@@ -251,9 +251,6 @@ describe("LocalNode creation options", () => {
       peers: [],
     });
 
-    const connected = setupTestNode({ isSyncServer: true });
-    void connected; // ensure a sync server exists for the load
-
     const { peer } = getSyncServerConnectedPeer({
       peerId: created.accountID,
     });
@@ -263,7 +260,7 @@ describe("LocalNode creation options", () => {
     await created.node.syncManager.waitForAllCoValuesSync();
 
     const { peer: peer2 } = getSyncServerConnectedPeer({
-      peerId: "loadingNode" as never,
+      peerId: "loadingNode",
     });
 
     const node = await LocalNode.withLoadedAccount({
