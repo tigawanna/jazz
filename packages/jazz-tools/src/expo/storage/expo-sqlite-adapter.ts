@@ -7,6 +7,15 @@ export class ExpoSQLiteAdapter implements SQLiteDatabaseDriverAsync {
   private db: SQLiteDatabase | null = null;
   private initializing: Promise<SQLiteDatabase> | null = null;
   private dbName: string;
+  /**
+   * Serializes transactions at the connection level. The adapter is shared
+   * across providers/contexts (see `getInstance`), each with its own storage
+   * client and transaction queue, and `withTransactionAsync` is not exclusive:
+   * without serialization here, a second BEGIN on the same connection fails
+   * with "cannot start a transaction within a transaction" and its ROLLBACK
+   * aborts the other caller's active transaction.
+   */
+  private txQueue: Promise<unknown> = Promise.resolve();
 
   static withDB(db: SQLiteDatabase): ExpoSQLiteAdapter {
     const adapter = new ExpoSQLiteAdapter();
@@ -89,14 +98,22 @@ export class ExpoSQLiteAdapter implements SQLiteDatabaseDriverAsync {
     await this.db.runAsync(sql, params?.map((p) => p as SQLiteBindValue) ?? []);
   }
 
-  public async transaction(callback: (tx: ExpoSQLiteAdapter) => unknown) {
-    if (!this.db) {
-      throw new Error("Database not initialized");
-    }
+  public transaction(callback: (tx: ExpoSQLiteAdapter) => unknown) {
+    const run = () => {
+      const db = this.db;
 
-    await this.db.withTransactionAsync(async () => {
-      await callback(ExpoSQLiteAdapter.withDB(this.db!));
-    });
+      if (!db) {
+        throw new Error("Database not initialized");
+      }
+
+      return db.withTransactionAsync(async () => {
+        await callback(ExpoSQLiteAdapter.withDB(db));
+      });
+    };
+
+    const next = this.txQueue.then(run, run);
+    this.txQueue = next;
+    return next;
   }
 
   /**
