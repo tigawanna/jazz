@@ -96,10 +96,12 @@ export class SQLiteTransactionAsync implements DBTransactionInterfaceAsync {
     newTransaction: Transaction,
   ): Promise<void> {
     // An interrupted write transaction (e.g. a concurrent ROLLBACK on a shared
-    // connection) can leave orphan rows with idx >= the session's lastIdx.
-    // A session's transaction at a given idx is canonical, so overwriting is
-    // safe and lets the session recover instead of failing on the primary key
-    // forever.
+    // connection) can leave orphan rows at idx >= the session's lastIdx, which
+    // would otherwise block the session on this primary key forever.
+    // Overwriting is safe: writes always start at the committed lastIdx (see
+    // putNewTxs), so a conflicting row is never covered by any stored
+    // signature, and the verified replacement commits atomically with the
+    // session row and signature that cover it.
     await this.tx.run(
       `INSERT INTO transactions (ses, idx, tx) VALUES (?, ?, ?)
        ON CONFLICT(ses, idx) DO UPDATE SET tx=excluded.tx`,
@@ -116,9 +118,12 @@ export class SQLiteTransactionAsync implements DBTransactionInterfaceAsync {
     idx: number;
     signature: Signature;
   }): Promise<void> {
-    // Same recovery rationale as addTransaction: the signature at a given
-    // (ses, idx) is canonical, so overwrite orphan rows left by interrupted
-    // write transactions.
+    // Same recovery rationale as addTransaction: a conflict can only be an
+    // orphan row left by an interrupted write transaction, and the verified
+    // replacement commits atomically with the matching session update.
+    // Orphan signature rows are worse than orphan transactions: loadCoValue
+    // reads all signatureAfter rows unbounded by lastIdx, so an orphan here
+    // is served to readers until it is overwritten.
     await this.tx.run(
       `INSERT INTO signatureAfter (ses, idx, signature) VALUES (?, ?, ?)
        ON CONFLICT(ses, idx) DO UPDATE SET signature=excluded.signature`,
