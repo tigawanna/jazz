@@ -23,6 +23,10 @@ import {
 import { AuthCredentials, NewAccountProps } from "../types.js";
 import { activeAccountContext } from "./activeAccountContext.js";
 import { AnonymousJazzAgent } from "./anonymousJazzAgent.js";
+import {
+  type SessionDurabilityMarker,
+  makeDurabilityMarkerListener,
+} from "./sessionDurabilityMarker.js";
 
 export type Credentials = {
   accountID: ID<Account>;
@@ -38,9 +42,17 @@ export interface SessionProvider {
     accountID: ID<Account>,
     sessionID: SessionID,
   ) => Promise<{ sessionDone: () => void }>;
+  /**
+   * When present, the context marks sessions as unsafe-to-reuse while they
+   * have transactions sent to a sync server but not yet persisted locally,
+   * and the provider must skip marked sessions in acquireSession.
+   */
+  durabilityMarker?: SessionDurabilityMarker;
 }
 
 export class MockSessionProvider implements SessionProvider {
+  durabilityMarker?: SessionDurabilityMarker;
+
   async acquireSession(
     accountID: ID<Account>,
     crypto: CryptoProvider,
@@ -142,6 +154,10 @@ export async function createJazzContextFromExistingCredentials<
   const AccountClass =
     coValueClassFromCoValueClassOrSchema(CurrentAccountSchema);
 
+  const onLocalStoreDurabilityChange = sessionProvider.durabilityMarker
+    ? makeDurabilityMarkerListener(sessionProvider.durabilityMarker)
+    : undefined;
+
   const node = await LocalNode.withLoadedAccount({
     accountID: credentials.accountID as unknown as CoID<RawAccount>,
     accountSecret: credentials.secret,
@@ -152,6 +168,7 @@ export async function createJazzContextFromExistingCredentials<
     storage,
     enableFullStorageReconciliation: !!storage,
     experimental_clockSyncFromServerPings,
+    onLocalStoreDurabilityChange,
     migration: async (rawAccount, _node, creationProps) => {
       const account = AccountClass.fromRaw(rawAccount) as InstanceOfSchema<S>;
       if (asActiveAccount) {
@@ -215,6 +232,10 @@ export async function createJazzContextForNewAccount<
   const AccountClass =
     coValueClassFromCoValueClassOrSchema(CurrentAccountSchema);
 
+  const onLocalStoreDurabilityChange = sessionProvider.durabilityMarker
+    ? makeDurabilityMarkerListener(sessionProvider.durabilityMarker)
+    : undefined;
+
   const { node } = await LocalNode.withNewlyCreatedAccount({
     creationProps,
     peers,
@@ -224,6 +245,7 @@ export async function createJazzContextForNewAccount<
     storage,
     enableFullStorageReconciliation: !!storage,
     experimental_clockSyncFromServerPings,
+    onLocalStoreDurabilityChange,
     migration: async (rawAccount, _node, creationProps) => {
       const account = AccountClass.fromRaw(rawAccount) as InstanceOfSchema<S>;
       activeAccountContext.set(account);
