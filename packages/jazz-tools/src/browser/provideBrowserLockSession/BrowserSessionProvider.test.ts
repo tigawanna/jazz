@@ -5,6 +5,7 @@ import { SessionID } from "cojson";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { BrowserSessionProvider } from "./BrowserSessionProvider.js";
 import { SessionIDStorage } from "./SessionIDStorage.js";
+import { BrowserSessionDurabilityMarker } from "./BrowserSessionDurabilityMarker.js";
 import { createJazzTestAccount } from "jazz-tools/testing";
 import type { CryptoProvider } from "jazz-tools";
 
@@ -401,6 +402,57 @@ describe("BrowserSessionProvider", () => {
       );
 
       expect(result.sessionID).toBe(sessionID);
+    });
+  });
+
+  describe("session durability marker", () => {
+    test("acquireSession skips a dirty session and reclaims its slot", async () => {
+      const provider = new BrowserSessionProvider();
+      const accountID = "co_zdirtytest" as any;
+
+      // A previously stored session that crashed inside the durability window
+      const dirtySession = Crypto.newRandomSessionID(accountID) as SessionID;
+      SessionIDStorage.storeSessionID(accountID, dirtySession, 0);
+      BrowserSessionDurabilityMarker.set(dirtySession);
+
+      const { sessionID, sessionDone } = await provider.acquireSession(
+        accountID,
+        Crypto as CryptoProvider,
+      );
+
+      // A fresh session was minted instead of reusing the dirty one
+      expect(sessionID).not.toBe(dirtySession);
+      // The dirty session's slot was overwritten (list does not grow)
+      expect(SessionIDStorage.getSessionsList(accountID)).toEqual([sessionID]);
+      // The old marker was cleaned up
+      expect(BrowserSessionDurabilityMarker.isSet(dirtySession)).toBe(false);
+
+      sessionDone();
+    });
+
+    test("acquireSession still reuses a clean stored session", async () => {
+      const provider = new BrowserSessionProvider();
+      const accountID = "co_zcleantest" as any;
+
+      const cleanSession = Crypto.newRandomSessionID(accountID) as SessionID;
+      SessionIDStorage.storeSessionID(accountID, cleanSession, 0);
+
+      const { sessionID, sessionDone } = await provider.acquireSession(
+        accountID,
+        Crypto as CryptoProvider,
+      );
+
+      expect(sessionID).toBe(cleanSession);
+      sessionDone();
+    });
+
+    test("marker set/clear/isSet round-trips through localStorage", () => {
+      const id = "co_zx_session_zy" as SessionID;
+      expect(BrowserSessionDurabilityMarker.isSet(id)).toBe(false);
+      BrowserSessionDurabilityMarker.set(id);
+      expect(BrowserSessionDurabilityMarker.isSet(id)).toBe(true);
+      BrowserSessionDurabilityMarker.clear(id);
+      expect(BrowserSessionDurabilityMarker.isSet(id)).toBe(false);
     });
   });
 });

@@ -1,8 +1,11 @@
 import { AgentID, CryptoProvider, RawAccountID, SessionID } from "cojson";
 import { ID, Account, SessionProvider } from "jazz-tools";
 import { SessionIDStorage } from "./SessionIDStorage";
+import { BrowserSessionDurabilityMarker } from "./BrowserSessionDurabilityMarker";
 
 export class BrowserSessionProvider implements SessionProvider {
+  durabilityMarker = BrowserSessionDurabilityMarker;
+
   async acquireSession(
     accountID: ID<Account> | AgentID,
     crypto: CryptoProvider,
@@ -11,8 +14,16 @@ export class BrowserSessionProvider implements SessionProvider {
 
     // Get the list of sessions for the account, to try to acquire an existing session
     const sessionsList = SessionIDStorage.getSessionsList(accountID);
+    let dirtySlot: { index: number; sessionID: SessionID } | undefined;
 
     for (const [index, sessionID] of sessionsList.entries()) {
+      // If the session crashed while it had sent-but-unpersisted transactions,
+      // reusing it could fork the session's hash chain on the server.
+      if (BrowserSessionDurabilityMarker.isSet(sessionID)) {
+        dirtySlot ??= { index, sessionID };
+        continue;
+      }
+
       const sessionAcquired = await tryToAcquireSession(
         sessionID,
         sessionPromise,
@@ -31,8 +42,14 @@ export class BrowserSessionProvider implements SessionProvider {
       accountID as RawAccountID | AgentID,
     );
 
-    // Acquire exclusively the session to store the new session ID for reuse in future sessions
-    await lockAndStoreSession(accountID, newSessionID, sessionPromise);
+    // Acquire exclusively the session to store the new session ID for reuse in future sessions.
+    // If a dirty slot was found, reclaim it so the list doesn't grow across crashes.
+    await lockAndStoreSession(
+      accountID,
+      newSessionID,
+      sessionPromise,
+      dirtySlot,
+    );
 
     console.log("Created new session", newSessionID); // This log is used in the e2e tests to verify the correctness of the feature
 
@@ -61,6 +78,7 @@ async function lockAndStoreSession(
   accountID: ID<Account> | AgentID,
   sessionID: SessionID,
   sessionPromise: Promise<void>,
+  replaceSlot?: { index: number; sessionID: SessionID },
 ) {
   const sessionAcquired = await tryToAcquireSession(sessionID, sessionPromise);
 
@@ -70,7 +88,7 @@ async function lockAndStoreSession(
   }
 
   // We don't need to wait for this to finish, we only need to acquire the lock on the new session
-  storeSessionID(accountID, sessionID);
+  storeSessionID(accountID, sessionID, replaceSlot);
 }
 
 function tryToAcquireSession(
@@ -100,6 +118,7 @@ function tryToAcquireSession(
 function storeSessionID(
   accountID: ID<Account> | AgentID,
   sessionID: SessionID,
+  replaceSlot?: { index: number; sessionID: SessionID },
 ) {
   return navigator.locks.request(
     `store_session_${accountID}`,
@@ -107,6 +126,18 @@ function storeSessionID(
     async (lock) => {
       if (!lock) {
         console.error("Couldn't get lock to store session ID", accountID);
+      }
+
+      if (replaceSlot) {
+        // Overwrite the abandoned dirty slot so the session list doesn't grow
+        // across crashes, and drop the stale marker.
+        SessionIDStorage.storeSessionID(
+          accountID,
+          sessionID,
+          replaceSlot.index,
+        );
+        BrowserSessionDurabilityMarker.clear(replaceSlot.sessionID);
+        return;
       }
 
       const sessionsList = SessionIDStorage.getSessionsList(accountID);
