@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, test } from "vitest";
 import { InMemoryKVStore } from "jazz-tools";
 import { KvStoreContext, type KvStore } from "jazz-tools";
 import { ReactNativeSessionProvider } from "../ReactNativeSessionProvider.js";
+import { ReactNativeSessionDurabilityMarker } from "../ReactNativeSessionDurabilityMarker.js";
 import { createJazzTestAccount } from "jazz-tools/testing";
 import type { CryptoProvider } from "jazz-tools";
 
@@ -291,6 +292,46 @@ describe("ReactNativeSessionProvider", () => {
 
       // Clean up
       result.sessionDone();
+    });
+  });
+
+  describe("session durability marker", () => {
+    test("acquireSession mints a new session when the stored one is dirty", async () => {
+      const accountID = account.$jazz.id;
+
+      // Store a session, then mark it dirty (as a crash inside the window would leave it)
+      const dirtySession = Crypto.newRandomSessionID(
+        accountID as unknown as RawAccountID,
+      );
+      await kvStore.set(accountID, dirtySession);
+      await ReactNativeSessionDurabilityMarker.set(dirtySession);
+
+      const result = await sessionProvider.acquireSession(
+        accountID,
+        Crypto as CryptoProvider,
+      );
+
+      expect(result.sessionID).not.toBe(dirtySession);
+      // The kv entry was overwritten with the new session
+      expect(await kvStore.get(accountID)).toBe(result.sessionID);
+      // The stale marker was removed
+      expect(await ReactNativeSessionDurabilityMarker.isSet(dirtySession)).toBe(
+        false,
+      );
+
+      result.sessionDone();
+    });
+
+    test("marker set/clear/isSet round-trips through the KvStore", async () => {
+      const id = "co_zx_session_zy" as SessionID;
+      expect(await ReactNativeSessionDurabilityMarker.isSet(id)).toBe(false);
+      ReactNativeSessionDurabilityMarker.set(id);
+      // set() is fire-and-forget; flush microtasks before asserting
+      await Promise.resolve();
+      expect(await ReactNativeSessionDurabilityMarker.isSet(id)).toBe(true);
+      ReactNativeSessionDurabilityMarker.clear(id);
+      await Promise.resolve();
+      expect(await ReactNativeSessionDurabilityMarker.isSet(id)).toBe(false);
     });
   });
 });

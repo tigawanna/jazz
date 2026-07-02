@@ -5,16 +5,33 @@ import {
   SessionProvider,
 } from "jazz-tools";
 import { AgentID, RawAccountID } from "cojson";
+import { ReactNativeSessionDurabilityMarker } from "./ReactNativeSessionDurabilityMarker.js";
 
 const lockedSessions = new Set<SessionID>();
 
 export class ReactNativeSessionProvider implements SessionProvider {
+  readonly durabilityMarker = ReactNativeSessionDurabilityMarker;
+
   async acquireSession(
     accountID: string,
     crypto: CryptoProvider,
   ): Promise<{ sessionID: SessionID; sessionDone: () => void }> {
     const kvStore = KvStoreContext.getInstance().getStorage();
-    const existingSession = await kvStore.get(accountID as string);
+    let existingSession = await kvStore.get(accountID as string);
+
+    if (
+      existingSession &&
+      (await ReactNativeSessionDurabilityMarker.isSet(
+        existingSession as SessionID,
+      ))
+    ) {
+      // The previous run crashed while it had transactions sent to a sync
+      // server but not yet persisted locally: reusing this session could fork
+      // its hash chain. Abandon it and fall through to minting a fresh one
+      // (which overwrites the kv entry below).
+      ReactNativeSessionDurabilityMarker.clear(existingSession as SessionID);
+      existingSession = null;
+    }
 
     if (!existingSession) {
       const newSessionID = crypto.newRandomSessionID(

@@ -19,3 +19,4 @@ export {
   ReactNativeContextManager,
   type JazzContextManagerProps,
 } from "./ReactNativeContextManager.js";
+export * from "./ReactNativeSessionDurabilityMarker.js";
