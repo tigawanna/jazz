@@ -1,5 +1,18 @@
 # cojson
 
+## 0.20.19
+
+### Patch Changes
+
+- dc43d1d: Recover from partially-written storage rows in async SQLite storage. Interrupted write transactions could leave orphan `transactions`/`signatureAfter` rows that made every subsequent store of the same session fail with "UNIQUE constraint failed: transactions.ses, transactions.idx"; those rows are now overwritten instead.
+- b13e956: Prevent unrecoverable session forking when a client crashes after transactions
+  were sent to the sync server but before they were persisted locally. Sessions
+  are now flagged while such a window is open, and the browser and React Native
+  session providers mint a fresh session instead of reusing a flagged one.
+  - cojson-core-wasm@0.20.19
+  - cojson-core-rn@0.20.19
+  - cojson-core-napi@0.20.19
+
 ## 0.20.18
 
 ### Patch Changes
