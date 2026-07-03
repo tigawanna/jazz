@@ -309,6 +309,9 @@ describe("crash recovery with a fresh session", () => {
     await restarted.addAsyncStorage({ filename: dbPath });
     restarted.connectToSyncServer();
 
+    // The fresh session is load-bearing: reusing the crashed session could fork its hash chain
+    expect(restarted.node.currentSessionID).not.toBe(client.node.currentSessionID);
+
     // The crashed transaction comes back down from the server
     const mapOnRestart = await loadCoValueOrFail(restarted.node, map.id);
     await waitFor(() => expect(mapOnRestart.get("crashed")).toEqual("yes"));
