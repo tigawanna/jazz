@@ -1,5 +1,20 @@
 # jazz-tools
 
+## 0.20.19
+
+### Patch Changes
+
+- b13e956: Prevent unrecoverable session forking when a client crashes after transactions
+  were sent to the sync server but before they were persisted locally. Sessions
+  are now flagged while such a window is open, and the browser and React Native
+  session providers mint a fresh session instead of reusing a flagged one.
+- dc43d1d: Serialize Expo SQLite transactions at the connection level. The adapter is shared across providers/contexts, so concurrent storage clients could nest `BEGIN` statements on the same connection, causing "cannot start a transaction within a transaction" and "cannot rollback - no transaction is active" errors during storage reconciliation.
+- Updated dependencies [dc43d1d]
+- Updated dependencies [b13e956]
+  - cojson@0.20.19
+  - cojson-storage-indexeddb@0.20.19
+  - cojson-transport-ws@0.20.19
+
 ## 0.20.18
 
 ### Patch Changes
