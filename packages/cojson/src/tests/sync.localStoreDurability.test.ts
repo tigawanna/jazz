@@ -4,10 +4,11 @@ import { LocalNode } from "../localNode";
 import {
   SyncMessagesLog,
   getSyncServerConnectedPeer,
+  loadCoValueOrFail,
   setupTestNode,
   waitFor,
 } from "./testUtils";
-import { registerStorageCleanupRunner } from "./testStorage";
+import { getDbPath, registerStorageCleanupRunner } from "./testStorage";
 
 const Crypto = await WasmCrypto.create();
 
@@ -275,5 +276,49 @@ describe("LocalNode creation options", () => {
     expect(node.syncManager.onLocalStoreDurabilityChange).toBe(listener);
     await node.gracefulShutdown();
     await created.node.gracefulShutdown();
+  });
+});
+
+describe("crash recovery with a fresh session", () => {
+  test("restarting with a new session over the same storage recovers and syncs cleanly", async () => {
+    const client = setupTestNode();
+    const dbPath = getDbPath();
+    const { storage } = await client.addAsyncStorage({ filename: dbPath });
+    const { peerState } = client.connectToSyncServer();
+
+    const group = client.node.createGroup();
+    const map = group.createMap();
+    map.set("hello", "world", "trusting");
+    await map.core.waitForSync();
+    await client.node.syncManager.waitForStorageSync(map.id);
+
+    // Enter the crash window: further writes reach the server but not storage
+    storage.store = async () => {};
+    map.set("crashed", "yes", "trusting");
+    await client.node.syncManager.waitForSyncWithPeer(
+      peerState.id,
+      map.id,
+      5000,
+    );
+
+    // "Crash": abandon the node without flushing (no graceful shutdown), then
+    // restart with the SAME agent, SAME storage file, but a NEW session — which
+    // is exactly what the session providers do when the durability marker is set.
+    client.disconnect();
+    const restarted = setupTestNode({ secret: client.node.agentSecret });
+    await restarted.addAsyncStorage({ filename: dbPath });
+    restarted.connectToSyncServer();
+
+    // The crashed transaction comes back down from the server
+    const mapOnRestart = await loadCoValueOrFail(restarted.node, map.id);
+    await waitFor(() => expect(mapOnRestart.get("crashed")).toEqual("yes"));
+
+    // New writes from the fresh session sync cleanly — no signature rejection
+    mapOnRestart.set("recovered", "yes", "trusting");
+    await mapOnRestart.core.waitForSync();
+
+    const mapOnServer = await loadCoValueOrFail(jazzCloud.node, map.id);
+    expect(mapOnServer.get("recovered")).toEqual("yes");
+    expect(mapOnServer.get("crashed")).toEqual("yes");
   });
 });
