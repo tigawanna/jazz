@@ -23,6 +23,10 @@ import {
 import { AuthCredentials, NewAccountProps } from "../types.js";
 import { activeAccountContext } from "./activeAccountContext.js";
 import { AnonymousJazzAgent } from "./anonymousJazzAgent.js";
+import {
+  type SessionDurabilityMarker,
+  makeDurabilityMarkerListener,
+} from "./sessionDurabilityMarker.js";
 
 export type Credentials = {
   accountID: ID<Account>;
@@ -38,9 +42,17 @@ export interface SessionProvider {
     accountID: ID<Account>,
     sessionID: SessionID,
   ) => Promise<{ sessionDone: () => void }>;
+  /**
+   * When present, the context marks sessions as unsafe-to-reuse while they
+   * have transactions sent to a sync server but not yet persisted locally,
+   * and the provider must skip marked sessions in acquireSession.
+   */
+  durabilityMarker?: SessionDurabilityMarker;
 }
 
 export class MockSessionProvider implements SessionProvider {
+  durabilityMarker?: SessionDurabilityMarker;
+
   async acquireSession(
     accountID: ID<Account>,
     crypto: CryptoProvider,
@@ -136,6 +148,18 @@ export async function createJazzContextFromExistingCredentials<
     crypto,
   );
 
+  // Defense in depth: acquireSession implementations must never return a
+  // session that is still marked unsafe to reuse (see SessionProvider docs)
+  if (
+    sessionProvider.durabilityMarker &&
+    (await sessionProvider.durabilityMarker.isSet(sessionID))
+  ) {
+    console.warn(
+      "Session provider returned a session still marked unsafe to reuse; a crash may fork it",
+      sessionID,
+    );
+  }
+
   const CurrentAccountSchema =
     PropsAccountSchema ?? (RegisteredSchemas["Account"] as unknown as S);
 
@@ -152,6 +176,9 @@ export async function createJazzContextFromExistingCredentials<
     storage,
     enableFullStorageReconciliation: !!storage,
     experimental_clockSyncFromServerPings,
+    onLocalStoreDurabilityChange: makeDurabilityMarkerListener(
+      sessionProvider.durabilityMarker,
+    ),
     migration: async (rawAccount, _node, creationProps) => {
       const account = AccountClass.fromRaw(rawAccount) as InstanceOfSchema<S>;
       if (asActiveAccount) {
@@ -224,6 +251,9 @@ export async function createJazzContextForNewAccount<
     storage,
     enableFullStorageReconciliation: !!storage,
     experimental_clockSyncFromServerPings,
+    onLocalStoreDurabilityChange: makeDurabilityMarkerListener(
+      sessionProvider.durabilityMarker,
+    ),
     migration: async (rawAccount, _node, creationProps) => {
       const account = AccountClass.fromRaw(rawAccount) as InstanceOfSchema<S>;
       activeAccountContext.set(account);

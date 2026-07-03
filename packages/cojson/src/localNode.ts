@@ -36,7 +36,13 @@ import { AgentSecret, CryptoProvider } from "./crypto/crypto.js";
 import { AgentID, RawCoID, SessionID, isAgentID, isRawCoID } from "./ids.js";
 import { logger } from "./logger.js";
 import { StorageAPI } from "./storage/index.js";
-import { Peer, PeerID, SyncManager, type SyncWhen } from "./sync.js";
+import {
+  Peer,
+  PeerID,
+  SyncManager,
+  type LocalStoreDurabilityListener,
+  type SyncWhen,
+} from "./sync.js";
 import { accountOrAgentIDfromSessionID } from "./typeUtils/accountOrAgentIDfromSessionID.js";
 import { expectGroup } from "./typeUtils/expectGroup.js";
 import { canBeBranched } from "./coValueCore/branching.js";
@@ -82,7 +88,10 @@ export class LocalNode {
     crypto: CryptoProvider,
     public readonly syncWhen?: SyncWhen,
     enableFullStorageReconciliation?: boolean,
-    options?: { experimental_clockSyncFromServerPings?: boolean },
+    options?: {
+      experimental_clockSyncFromServerPings?: boolean;
+      onLocalStoreDurabilityChange?: LocalStoreDurabilityListener;
+    },
   ) {
     this.agentSecret = agentSecret;
     this.currentSessionID = currentSessionID;
@@ -92,6 +101,8 @@ export class LocalNode {
     }
     this.#clockSyncEnabled =
       options?.experimental_clockSyncFromServerPings ?? false;
+    this.syncManager.onLocalStoreDurabilityChange =
+      options?.onLocalStoreDurabilityChange;
   }
 
   stampNow(): number {
@@ -288,6 +299,7 @@ export class LocalNode {
     storage?: StorageAPI;
     enableFullStorageReconciliation?: boolean;
     experimental_clockSyncFromServerPings?: boolean;
+    onLocalStoreDurabilityChange?: LocalStoreDurabilityListener;
   }): RawAccount {
     const {
       crypto,
@@ -310,6 +322,7 @@ export class LocalNode {
       {
         experimental_clockSyncFromServerPings:
           opts.experimental_clockSyncFromServerPings,
+        onLocalStoreDurabilityChange: opts.onLocalStoreDurabilityChange,
       },
     );
 
@@ -359,6 +372,7 @@ export class LocalNode {
     storage,
     enableFullStorageReconciliation,
     experimental_clockSyncFromServerPings,
+    onLocalStoreDurabilityChange,
   }: {
     creationProps: { name: string };
     peers?: Peer[];
@@ -369,6 +383,7 @@ export class LocalNode {
     storage?: StorageAPI;
     enableFullStorageReconciliation?: boolean;
     experimental_clockSyncFromServerPings?: boolean;
+    onLocalStoreDurabilityChange?: LocalStoreDurabilityListener;
   }): Promise<{
     node: LocalNode;
     accountID: RawAccountID;
@@ -383,6 +398,7 @@ export class LocalNode {
       storage,
       enableFullStorageReconciliation,
       experimental_clockSyncFromServerPings,
+      onLocalStoreDurabilityChange,
     });
     const node = account.core.node;
 
@@ -430,6 +446,7 @@ export class LocalNode {
     storage,
     enableFullStorageReconciliation,
     experimental_clockSyncFromServerPings,
+    onLocalStoreDurabilityChange,
   }: {
     accountID: RawAccountID;
     accountSecret: AgentSecret;
@@ -441,6 +458,7 @@ export class LocalNode {
     storage?: StorageAPI;
     enableFullStorageReconciliation?: boolean;
     experimental_clockSyncFromServerPings?: boolean;
+    onLocalStoreDurabilityChange?: LocalStoreDurabilityListener;
   }): Promise<LocalNode> {
     try {
       const expectedAgentID = crypto.getAgentID(accountSecret);
@@ -451,7 +469,10 @@ export class LocalNode {
         crypto,
         syncWhen,
         enableFullStorageReconciliation,
-        { experimental_clockSyncFromServerPings },
+        {
+          experimental_clockSyncFromServerPings,
+          onLocalStoreDurabilityChange,
+        },
       );
 
       if (storage) {

@@ -267,16 +267,26 @@ export class StorageApiAsync implements StorageAPI {
 
   storeQueue = new StoreQueue();
 
-  async store(msg: NewContentMessage, correctionCallback: CorrectionCallback) {
+  async store(
+    msg: NewContentMessage,
+    correctionCallback: CorrectionCallback,
+    done?: () => void,
+  ) {
     /**
      * The store operations must be done one by one, because we can't start a new transaction when there
      * is already a transaction open.
      */
-    this.storeQueue.push(msg, correctionCallback);
+    this.storeQueue.push(msg, correctionCallback, done);
 
-    this.storeQueue.processQueue(async (data, correctionCallback) => {
+    this.storeQueue.processQueue(async (data, correctionCallback, done) => {
       this.interruptEraser("store");
-      return this.storeSingle(data, correctionCallback);
+      const success = await this.storeSingle(data, correctionCallback);
+
+      if (success) {
+        done?.();
+      }
+
+      return success;
     });
   }
 

@@ -60,7 +60,19 @@ export interface StorageAPI {
     callback: (data: NewContentMessage) => void,
     done?: (found: boolean) => void,
   ): void;
-  store(data: NewContentMessage, handleCorrection: CorrectionCallback): void;
+  /**
+   * Stores the content. `done` is invoked only after the content is durably
+   * stored (including any correction round-trip). It is NOT invoked when the
+   * write fails or is dropped — callers rely on that to detect content that
+   * was sent to peers but never persisted. Depending on the implementation,
+   * done may fire synchronously before store() returns (sync storage) or
+   * later (async queue).
+   */
+  store(
+    data: NewContentMessage,
+    handleCorrection: CorrectionCallback,
+    done?: () => void,
+  ): void;
 
   streamingQueue?: StorageStreamingQueue;
 

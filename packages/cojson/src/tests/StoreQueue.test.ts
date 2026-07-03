@@ -82,11 +82,13 @@ describe("StoreQueue", () => {
         1,
         data1,
         mockCorrectionCallback,
+        undefined,
       );
       expect(mockCallback).toHaveBeenNthCalledWith(
         2,
         data2,
         mockCorrectionCallback,
+        undefined,
       );
     });
 
@@ -192,6 +194,7 @@ describe("StoreQueue", () => {
       expect(mockCallback).toHaveBeenLastCalledWith(
         data3,
         mockCorrectionCallback,
+        undefined,
       );
     });
 
@@ -265,6 +268,23 @@ describe("StoreQueue", () => {
       }
 
       expect(count).toBe(entries);
+    });
+  });
+
+  describe("done callbacks", () => {
+    test("passes each entry's done callback to the processing callback", async () => {
+      const queue = new StoreQueue();
+      const done1 = vi.fn();
+
+      queue.push(createMockNewContentMessage("co_z1"), () => undefined, done1);
+      queue.push(createMockNewContentMessage("co_z2"), () => undefined);
+
+      const seen: Array<(() => void) | undefined> = [];
+      await queue.processQueue(async (_data, _correction, done) => {
+        seen.push(done);
+      });
+
+      expect(seen).toEqual([done1, undefined]);
     });
   });
 });

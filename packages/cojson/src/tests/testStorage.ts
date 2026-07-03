@@ -254,38 +254,43 @@ function trackStorageMessages(
     });
   };
 
-  storage.store = function (data, correctionCallback) {
+  storage.store = function (data, correctionCallback, done) {
     SyncMessagesLog.add({
       from: nodeName,
       to: storageName,
       msg: data,
     });
 
-    return originalStore.call(storage, data, (correction) => {
-      SyncMessagesLog.add({
-        from: storageName,
-        to: nodeName,
-        msg: {
-          action: "known",
-          isCorrection: true,
-          ...correction,
-        },
-      });
+    return originalStore.call(
+      storage,
+      data,
+      (correction) => {
+        SyncMessagesLog.add({
+          from: storageName,
+          to: nodeName,
+          msg: {
+            action: "known",
+            isCorrection: true,
+            ...correction,
+          },
+        });
 
-      const correctionMessages = correctionCallback(correction);
+        const correctionMessages = correctionCallback(correction);
 
-      if (correctionMessages) {
-        for (const msg of correctionMessages) {
-          SyncMessagesLog.add({
-            from: nodeName,
-            to: storageName,
-            msg,
-          });
+        if (correctionMessages) {
+          for (const msg of correctionMessages) {
+            SyncMessagesLog.add({
+              from: nodeName,
+              to: storageName,
+              msg,
+            });
+          }
         }
-      }
 
-      return correctionMessages;
-    });
+        return correctionMessages;
+      },
+      done,
+    );
   };
 
   storage.load = function (id, callback, done) {

@@ -33,6 +33,7 @@ export * from "./lib/cache.js";
 export * from "./lib/utils.js";
 export * from "./lib/utilityTypes.js";
 export * from "./implementation/createContext.js";
+export * from "./implementation/sessionDurabilityMarker.js";
 
 export * from "./types.js";
 export * from "./implementation/zodSchema/zodSchema.js";

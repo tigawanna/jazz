@@ -300,8 +300,18 @@ export class StorageApiSync implements StorageAPI {
     pushCallback(contentMessage);
   }
 
-  store(msg: NewContentMessage, correctionCallback: CorrectionCallback) {
-    return this.storeSingle(msg, correctionCallback);
+  store(
+    msg: NewContentMessage,
+    correctionCallback: CorrectionCallback,
+    done?: () => void,
+  ) {
+    const success = this.storeSingle(msg, correctionCallback);
+
+    if (success) {
+      done?.();
+    }
+
+    return success;
   }
 
   /**

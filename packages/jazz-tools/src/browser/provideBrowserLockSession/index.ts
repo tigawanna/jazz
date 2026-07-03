@@ -1,5 +1,6 @@
 import { MockSessionProvider } from "jazz-tools";
 import { BrowserSessionProvider } from "./BrowserSessionProvider";
+export { BrowserSessionDurabilityMarker } from "./BrowserSessionDurabilityMarker";
 
 export function getBrowserLockSessionProvider() {
   if (typeof navigator === "undefined" || !navigator.locks?.request) {

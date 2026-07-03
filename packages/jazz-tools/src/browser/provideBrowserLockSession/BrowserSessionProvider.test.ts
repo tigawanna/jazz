@@ -1,10 +1,11 @@
 // @vitest-environment happy-dom
 
 import { WasmCrypto } from "cojson/crypto/WasmCrypto";
-import { SessionID } from "cojson";
+import { RawAccountID, SessionID } from "cojson";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { BrowserSessionProvider } from "./BrowserSessionProvider.js";
 import { SessionIDStorage } from "./SessionIDStorage.js";
+import { BrowserSessionDurabilityMarker } from "./BrowserSessionDurabilityMarker.js";
 import { createJazzTestAccount } from "jazz-tools/testing";
 import type { CryptoProvider } from "jazz-tools";
 
@@ -401,6 +402,101 @@ describe("BrowserSessionProvider", () => {
       );
 
       expect(result.sessionID).toBe(sessionID);
+    });
+  });
+
+  describe("session durability marker", () => {
+    test("acquireSession skips a dirty session and reclaims its slot", async () => {
+      const provider = new BrowserSessionProvider();
+      const accountID = account.$jazz.id;
+
+      // A previously stored session that crashed inside the durability window
+      const dirtySession = Crypto.newRandomSessionID(
+        accountID as unknown as RawAccountID,
+      ) as SessionID;
+      SessionIDStorage.storeSessionID(accountID, dirtySession, 0);
+      BrowserSessionDurabilityMarker.set(dirtySession);
+
+      const { sessionID, sessionDone } = await provider.acquireSession(
+        accountID,
+        Crypto as CryptoProvider,
+      );
+
+      // A fresh session was minted instead of reusing the dirty one
+      expect(sessionID).not.toBe(dirtySession);
+      // The dirty session's slot was overwritten (list does not grow)
+      expect(SessionIDStorage.getSessionsList(accountID)).toEqual([sessionID]);
+      // The old marker was cleaned up
+      expect(BrowserSessionDurabilityMarker.isSet(dirtySession)).toBe(false);
+
+      sessionDone();
+    });
+
+    test("acquireSession still reuses a clean stored session", async () => {
+      const provider = new BrowserSessionProvider();
+      const accountID = account.$jazz.id;
+
+      const cleanSession = Crypto.newRandomSessionID(
+        accountID as unknown as RawAccountID,
+      ) as SessionID;
+      SessionIDStorage.storeSessionID(accountID, cleanSession, 0);
+
+      const { sessionID, sessionDone } = await provider.acquireSession(
+        accountID,
+        Crypto as CryptoProvider,
+      );
+
+      expect(sessionID).toBe(cleanSession);
+      sessionDone();
+    });
+
+    test("marker set/clear/isSet round-trips through localStorage", () => {
+      const id = "co_zx_session_zy" as SessionID;
+      expect(BrowserSessionDurabilityMarker.isSet(id)).toBe(false);
+      BrowserSessionDurabilityMarker.set(id);
+      expect(BrowserSessionDurabilityMarker.isSet(id)).toBe(true);
+      BrowserSessionDurabilityMarker.clear(id);
+      expect(BrowserSessionDurabilityMarker.isSet(id)).toBe(false);
+    });
+
+    test("concurrent acquireSession reclaims dirty slot without orphaning sessions", async () => {
+      const provider = new BrowserSessionProvider();
+      const accountID = account.$jazz.id;
+
+      // A dirty session left behind at slot 0
+      const dirtySession = Crypto.newRandomSessionID(
+        accountID as unknown as RawAccountID,
+      ) as SessionID;
+      SessionIDStorage.storeSessionID(accountID, dirtySession, 0);
+      BrowserSessionDurabilityMarker.set(dirtySession);
+
+      // Two concurrent acquireSession calls for the same account
+      const [result1, result2] = await Promise.all([
+        provider.acquireSession(accountID, Crypto as CryptoProvider),
+        provider.acquireSession(accountID, Crypto as CryptoProvider),
+      ]);
+
+      const { sessionID: sid1, sessionDone: done1 } = result1;
+      const { sessionID: sid2, sessionDone: done2 } = result2;
+
+      // Both sessions differ from the dirty one
+      expect(sid1).not.toBe(dirtySession);
+      expect(sid2).not.toBe(dirtySession);
+
+      // The two new sessions are distinct
+      expect(sid1).not.toBe(sid2);
+
+      // The dirty marker is cleared
+      expect(BrowserSessionDurabilityMarker.isSet(dirtySession)).toBe(false);
+
+      // Session list has exactly 2 entries (slot 0 replaced + one appended)
+      const sessionsList = SessionIDStorage.getSessionsList(accountID);
+      expect(sessionsList).toHaveLength(2);
+      expect(sessionsList).toContain(sid1);
+      expect(sessionsList).toContain(sid2);
+
+      done1();
+      done2();
     });
   });
 });
