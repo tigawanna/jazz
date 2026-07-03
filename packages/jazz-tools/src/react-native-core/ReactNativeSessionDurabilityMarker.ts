@@ -12,7 +12,7 @@ import {
 /**
  * KvStore-backed durability marker. KvStore writes are async, so `set` can
  * only be *initiated* before the network send — a best-effort guarantee
- * (accepted limitation, see the design spec's residual-risk section).
+ * (accepted limitation).
  */
 export const ReactNativeSessionDurabilityMarker: SessionDurabilityMarker = {
   set(sessionID: SessionID) {
