@@ -148,15 +148,23 @@ export async function createJazzContextFromExistingCredentials<
     crypto,
   );
 
+  // Defense in depth: acquireSession implementations must never return a
+  // session that is still marked unsafe to reuse (see SessionProvider docs)
+  if (
+    sessionProvider.durabilityMarker &&
+    (await sessionProvider.durabilityMarker.isSet(sessionID))
+  ) {
+    console.warn(
+      "Session provider returned a session still marked unsafe to reuse; a crash may fork it",
+      sessionID,
+    );
+  }
+
   const CurrentAccountSchema =
     PropsAccountSchema ?? (RegisteredSchemas["Account"] as unknown as S);
 
   const AccountClass =
     coValueClassFromCoValueClassOrSchema(CurrentAccountSchema);
-
-  const onLocalStoreDurabilityChange = sessionProvider.durabilityMarker
-    ? makeDurabilityMarkerListener(sessionProvider.durabilityMarker)
-    : undefined;
 
   const node = await LocalNode.withLoadedAccount({
     accountID: credentials.accountID as unknown as CoID<RawAccount>,
@@ -168,7 +176,9 @@ export async function createJazzContextFromExistingCredentials<
     storage,
     enableFullStorageReconciliation: !!storage,
     experimental_clockSyncFromServerPings,
-    onLocalStoreDurabilityChange,
+    onLocalStoreDurabilityChange: makeDurabilityMarkerListener(
+      sessionProvider.durabilityMarker,
+    ),
     migration: async (rawAccount, _node, creationProps) => {
       const account = AccountClass.fromRaw(rawAccount) as InstanceOfSchema<S>;
       if (asActiveAccount) {
@@ -232,10 +242,6 @@ export async function createJazzContextForNewAccount<
   const AccountClass =
     coValueClassFromCoValueClassOrSchema(CurrentAccountSchema);
 
-  const onLocalStoreDurabilityChange = sessionProvider.durabilityMarker
-    ? makeDurabilityMarkerListener(sessionProvider.durabilityMarker)
-    : undefined;
-
   const { node } = await LocalNode.withNewlyCreatedAccount({
     creationProps,
     peers,
@@ -245,7 +251,9 @@ export async function createJazzContextForNewAccount<
     storage,
     enableFullStorageReconciliation: !!storage,
     experimental_clockSyncFromServerPings,
-    onLocalStoreDurabilityChange,
+    onLocalStoreDurabilityChange: makeDurabilityMarkerListener(
+      sessionProvider.durabilityMarker,
+    ),
     migration: async (rawAccount, _node, creationProps) => {
       const account = AccountClass.fromRaw(rawAccount) as InstanceOfSchema<S>;
       activeAccountContext.set(account);

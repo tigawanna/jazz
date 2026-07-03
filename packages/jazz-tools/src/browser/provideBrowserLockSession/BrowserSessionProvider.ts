@@ -128,35 +128,22 @@ function storeSessionID(
         console.error("Couldn't get lock to store session ID", accountID);
       }
 
-      if (replaceSlot) {
-        const sessionsList = SessionIDStorage.getSessionsList(accountID);
-        if (sessionsList[replaceSlot.index] === replaceSlot.sessionID) {
-          // Overwrite the abandoned dirty slot so the session list doesn't grow
-          // across crashes, and drop the stale marker.
-          SessionIDStorage.storeSessionID(
-            accountID,
-            sessionID,
-            replaceSlot.index,
-          );
-          BrowserSessionDurabilityMarker.clear(replaceSlot.sessionID);
-          return;
-        }
-        // Slot was already reclaimed by a concurrent tab: keep its entry and append instead.
-        BrowserSessionDurabilityMarker.clear(replaceSlot.sessionID);
-        SessionIDStorage.storeSessionID(
-          accountID,
-          sessionID,
-          sessionsList.length,
-        );
-        return;
-      }
-
       const sessionsList = SessionIDStorage.getSessionsList(accountID);
-      SessionIDStorage.storeSessionID(
-        accountID,
-        sessionID,
-        sessionsList.length,
-      );
+
+      // Reclaim the abandoned dirty session's slot so the list doesn't grow
+      // across crashes — unless a concurrent tab already took it, in which
+      // case append. The stale marker is dropped only after the slot is
+      // written, so a crash in between leaves the session safely marked.
+      const index =
+        replaceSlot && sessionsList[replaceSlot.index] === replaceSlot.sessionID
+          ? replaceSlot.index
+          : sessionsList.length;
+
+      SessionIDStorage.storeSessionID(accountID, sessionID, index);
+
+      if (replaceSlot) {
+        BrowserSessionDurabilityMarker.clear(replaceSlot.sessionID);
+      }
     },
   );
 }

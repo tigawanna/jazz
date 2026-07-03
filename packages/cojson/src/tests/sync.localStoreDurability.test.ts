@@ -75,20 +75,18 @@ describe("local store durability window", () => {
   test("opens before the first peer send and closes when async storage drains", async () => {
     const client = setupTestNode();
     await client.addAsyncStorage();
-    client.connectToSyncServer();
+    const { peerState } = client.connectToSyncServer();
 
+    // Instrument the actual outgoing push: the window must open before any
+    // content message physically leaves the node
     let contentSent = false;
-    const originalTrySend = client.node.syncManager.trySendToPeer.bind(
-      client.node.syncManager,
-    );
-    vi.spyOn(client.node.syncManager, "trySendToPeer").mockImplementation(
-      (peer, msg) => {
-        if (msg.action === "content") {
-          contentSent = true;
-        }
-        return originalTrySend(peer, msg);
-      },
-    );
+    const originalPush = peerState.pushOutgoingMessage.bind(peerState);
+    vi.spyOn(peerState, "pushOutgoingMessage").mockImplementation((msg) => {
+      if (msg.action === "content") {
+        contentSent = true;
+      }
+      return originalPush(msg);
+    });
 
     const events: Array<{ hasPending: boolean; contentSentAlready: boolean }> =
       [];
@@ -226,6 +224,37 @@ describe("local store durability window", () => {
     );
     expect(events).toEqual([true]); // opened, never closed
   });
+
+  test("opens when pending content is sent through reconnection reconciliation", async () => {
+    const client = setupTestNode();
+    const { storage } = await client.addAsyncStorage();
+
+    // Writes never complete: the local edit below stays pending forever
+    storage.store = async () => {};
+
+    const events: boolean[] = [];
+    client.node.syncManager.onLocalStoreDurabilityChange = (hasPending) =>
+      events.push(hasPending);
+
+    const group = client.node.createGroup();
+    const map = group.createMap();
+    map.set("hello", "world", "trusting");
+
+    // Not connected yet: nothing was sent, so the window must not be open
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(events).toEqual([]);
+
+    // Connecting sends the pending content through reconciliation
+    // (sendNewContent), not through syncContent — the window must still open
+    const { peerState } = client.connectToSyncServer();
+    await client.node.syncManager.waitForSyncWithPeer(
+      peerState.id,
+      map.id,
+      5000,
+    );
+
+    expect(events).toEqual([true]);
+  });
 });
 
 describe("LocalNode creation options", () => {
@@ -290,7 +319,6 @@ describe("crash recovery with a fresh session", () => {
     const map = group.createMap();
     map.set("hello", "world", "trusting");
     await map.core.waitForSync();
-    await client.node.syncManager.waitForStorageSync(map.id);
 
     // Enter the crash window: further writes reach the server but not storage
     storage.store = async () => {};
@@ -310,7 +338,9 @@ describe("crash recovery with a fresh session", () => {
     restarted.connectToSyncServer();
 
     // The fresh session is load-bearing: reusing the crashed session could fork its hash chain
-    expect(restarted.node.currentSessionID).not.toBe(client.node.currentSessionID);
+    expect(restarted.node.currentSessionID).not.toBe(
+      client.node.currentSessionID,
+    );
 
     // The crashed transaction comes back down from the server
     const mapOnRestart = await loadCoValueOrFail(restarted.node, map.id);

@@ -107,7 +107,7 @@ export {
   MockSessionProvider,
   type SessionDurabilityMarker,
   makeDurabilityMarkerListener,
-  SESSION_DURABILITY_CLEAR_DEBOUNCE_MS,
+  sessionDurabilityMarkerKey,
   type AuthResult,
   type Credentials,
   type JazzContextWithAccount,

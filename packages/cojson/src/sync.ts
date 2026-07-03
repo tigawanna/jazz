@@ -810,6 +810,15 @@ export class SyncManager {
   }
 
   trySendToPeer(peer: PeerState, msg: SyncMessage) {
+    if (msg.action === "content") {
+      // Content leaves the node from several paths (local-transaction sync,
+      // reconnection reconciliation, corrections). This is the single choke
+      // point for all of them, so the durability window is opened here: if any
+      // local store is still pending when content goes out, the session must
+      // be marked unsafe to reuse until storage drains.
+      this.openLocalStoreDurabilityWindow();
+    }
+
     return peer.pushOutgoingMessage(msg);
   }
 
@@ -1478,6 +1487,10 @@ export class SyncManager {
     const coValue = this.local.getCoValue(content.id);
 
     if (this.local.storage) {
+      // A per-message done callback is used instead of storage.waitForSync
+      // because waitForSync resolves on known-state coverage (which can also
+      // happen on deletion/erasure) and allocates a promise + subscription per
+      // wait — done fires only on a durable write of exactly this content.
       this.pendingLocalStores++;
       this.storeContent(content, this.handleLocalStoreDone);
     }
@@ -1499,10 +1512,6 @@ export class SyncManager {
         peer.emitCoValueChange(content.id);
         continue;
       }
-
-      // The content is about to leave the node while its local store may still
-      // be pending: mark the session as unsafe to reuse until storage drains.
-      this.openLocalStoreDurabilityWindow();
 
       // We assume that the peer already knows anything before this content
       // Any eventual reconciliation will be handled through the known state messages exchange

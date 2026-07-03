@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
 import { WasmCrypto } from "cojson/crypto/WasmCrypto";
-import { SessionID } from "cojson";
+import { RawAccountID, SessionID } from "cojson";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { BrowserSessionProvider } from "./BrowserSessionProvider.js";
 import { SessionIDStorage } from "./SessionIDStorage.js";
@@ -408,10 +408,12 @@ describe("BrowserSessionProvider", () => {
   describe("session durability marker", () => {
     test("acquireSession skips a dirty session and reclaims its slot", async () => {
       const provider = new BrowserSessionProvider();
-      const accountID = "co_zdirtytest" as any;
+      const accountID = account.$jazz.id;
 
       // A previously stored session that crashed inside the durability window
-      const dirtySession = Crypto.newRandomSessionID(accountID) as SessionID;
+      const dirtySession = Crypto.newRandomSessionID(
+        accountID as unknown as RawAccountID,
+      ) as SessionID;
       SessionIDStorage.storeSessionID(accountID, dirtySession, 0);
       BrowserSessionDurabilityMarker.set(dirtySession);
 
@@ -432,9 +434,11 @@ describe("BrowserSessionProvider", () => {
 
     test("acquireSession still reuses a clean stored session", async () => {
       const provider = new BrowserSessionProvider();
-      const accountID = "co_zcleantest" as any;
+      const accountID = account.$jazz.id;
 
-      const cleanSession = Crypto.newRandomSessionID(accountID) as SessionID;
+      const cleanSession = Crypto.newRandomSessionID(
+        accountID as unknown as RawAccountID,
+      ) as SessionID;
       SessionIDStorage.storeSessionID(accountID, cleanSession, 0);
 
       const { sessionID, sessionDone } = await provider.acquireSession(
@@ -457,10 +461,12 @@ describe("BrowserSessionProvider", () => {
 
     test("concurrent acquireSession reclaims dirty slot without orphaning sessions", async () => {
       const provider = new BrowserSessionProvider();
-      const accountID = "co_zconcurrent" as any;
+      const accountID = account.$jazz.id;
 
       // A dirty session left behind at slot 0
-      const dirtySession = Crypto.newRandomSessionID(accountID) as SessionID;
+      const dirtySession = Crypto.newRandomSessionID(
+        accountID as unknown as RawAccountID,
+      ) as SessionID;
       SessionIDStorage.storeSessionID(accountID, dirtySession, 0);
       BrowserSessionDurabilityMarker.set(dirtySession);
 

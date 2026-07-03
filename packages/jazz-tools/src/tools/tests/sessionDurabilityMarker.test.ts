@@ -78,6 +78,30 @@ describe("makeDurabilityMarkerListener", () => {
     expect(marker.clear).not.toHaveBeenCalled();
   });
 
+  test("a reopen within the debounce doesn't rewrite the still-set marker", () => {
+    vi.useFakeTimers();
+    const marker = mockMarker();
+    const listener = makeDurabilityMarkerListener(marker, 200);
+
+    listener(true, sessionID);
+    listener(false, sessionID);
+    listener(true, sessionID); // marker was never cleared: no write needed
+
+    expect(marker.set).toHaveBeenCalledTimes(1);
+
+    // ...but after an actual clear, the next window writes again
+    listener(false, sessionID);
+    vi.advanceTimersByTime(200);
+    listener(true, sessionID);
+
+    expect(marker.clear).toHaveBeenCalledTimes(1);
+    expect(marker.set).toHaveBeenCalledTimes(2);
+  });
+
+  test("returns undefined when no marker is provided", () => {
+    expect(makeDurabilityMarkerListener(undefined)).toBeUndefined();
+  });
+
   test("marker errors are swallowed with a warning", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const marker = mockMarker();

@@ -20,6 +20,14 @@ export interface SessionDurabilityMarker {
   isSet(sessionID: SessionID): boolean | Promise<boolean>;
 }
 
+/**
+ * Storage key under which a session's dirty flag is persisted. Shared by all
+ * platform marker implementations so the key format cannot silently diverge.
+ */
+export function sessionDurabilityMarkerKey(sessionID: SessionID) {
+  return `jazz_session_dirty_${sessionID}`;
+}
+
 export const SESSION_DURABILITY_CLEAR_DEBOUNCE_MS = 200;
 
 /**
@@ -27,12 +35,28 @@ export const SESSION_DURABILITY_CLEAR_DEBOUNCE_MS = 200;
  * hook. Setting is immediate (correctness-critical); clearing is debounced so
  * the marker doesn't churn on every batch while the user is actively editing.
  * A crash inside the debounce at worst abandons one session unnecessarily.
+ *
+ * Returns undefined when no marker is provided, matching the optional
+ * listener slot on LocalNode creation options.
  */
 export function makeDurabilityMarkerListener(
   marker: SessionDurabilityMarker,
+  clearDebounceMs?: number,
+): LocalStoreDurabilityListener;
+export function makeDurabilityMarkerListener(
+  marker: SessionDurabilityMarker | undefined,
+  clearDebounceMs?: number,
+): LocalStoreDurabilityListener | undefined;
+export function makeDurabilityMarkerListener(
+  marker: SessionDurabilityMarker | undefined,
   clearDebounceMs: number = SESSION_DURABILITY_CLEAR_DEBOUNCE_MS,
-): LocalStoreDurabilityListener {
+): LocalStoreDurabilityListener | undefined {
+  if (!marker) {
+    return undefined;
+  }
+
   let clearTimer: ReturnType<typeof setTimeout> | undefined;
+  let markerIsSet = false;
 
   return (hasPending, sessionID) => {
     if (clearTimer !== undefined) {
@@ -41,8 +65,15 @@ export function makeDurabilityMarkerListener(
     }
 
     if (hasPending) {
+      // A window reopening within the clear debounce finds the marker still
+      // set: skip the write so steady-state editing costs no marker I/O
+      if (markerIsSet) {
+        return;
+      }
+
       try {
         marker.set(sessionID);
+        markerIsSet = true;
       } catch (err) {
         console.warn("Failed to set session durability marker", err);
       }
@@ -52,6 +83,7 @@ export function makeDurabilityMarkerListener(
 
         try {
           marker.clear(sessionID);
+          markerIsSet = false;
         } catch (err) {
           console.warn("Failed to clear session durability marker", err);
         }

@@ -1,10 +1,13 @@
 import type { SessionID } from "cojson";
 import type { SessionDurabilityMarker } from "jazz-tools";
-import { KvStoreContext } from "jazz-tools";
-
-function markerKey(sessionID: SessionID) {
-  return `jazz_session_dirty_${sessionID}`;
-}
+// KvStoreContext must come from "jazz-tools" (not the sibling
+// ./storage/kv-store-context.js module): the repo currently has two identical
+// KvStoreContext classes with separate singleton state, and the session
+// provider that reads this marker uses the "jazz-tools" one
+import {
+  KvStoreContext,
+  sessionDurabilityMarkerKey as markerKey,
+} from "jazz-tools";
 
 /**
  * KvStore-backed durability marker. KvStore writes are async, so `set` can

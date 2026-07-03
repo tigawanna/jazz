@@ -1,9 +1,6 @@
 import type { SessionID } from "cojson";
 import type { SessionDurabilityMarker } from "jazz-tools";
-
-function markerKey(sessionID: SessionID) {
-  return `jazz_session_dirty_${sessionID}`;
-}
+import { sessionDurabilityMarkerKey as markerKey } from "jazz-tools";
 
 /**
  * localStorage-backed durability marker. Writes are synchronous, so a marker
