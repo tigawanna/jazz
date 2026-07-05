@@ -3,6 +3,8 @@
 pub use lzy;
 
 pub mod core {
+    pub mod group_keys;
+    pub use group_keys::*;
     pub mod keys;
     pub mod nonce;
     pub mod session_log;
@@ -26,6 +28,7 @@ pub mod hash {
 pub mod crypto {
     pub mod ed25519;
     pub mod encrypt;
+    pub mod key_secret;
     pub mod seal;
     pub mod signature;
     pub mod x25519;
@@ -33,6 +36,7 @@ pub mod crypto {
 
     pub use ed25519::*;
     pub use encrypt::*;
+    pub use key_secret::*;
     pub use seal::*;
     pub use signature::*;
     pub use x25519::*;
