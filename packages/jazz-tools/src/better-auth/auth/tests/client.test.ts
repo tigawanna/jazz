@@ -17,9 +17,13 @@ import {
   vi,
 } from "vitest";
 import { jazzPluginClient } from "../client.js";
+import type { jazzPlugin } from "../server.js";
 import { emailOTPClient, genericOAuthClient } from "better-auth/client/plugins";
 
 type JazzPluginClient = ReturnType<typeof jazzPluginClient>;
+type JazzAuthClient = ReturnType<
+  typeof createAuthClient<{ plugins: [JazzPluginClient] }>
+>;
 type BetterAuthGetActions = NonNullable<BetterAuthClientPlugin["getActions"]>;
 type BetterAuthFetchPlugins = NonNullable<
   BetterAuthClientPlugin["fetchPlugins"]
@@ -39,6 +43,7 @@ expectTypeOf<
     setAuthSecretStorage: (storage: AuthSecretStorage) => void;
   };
 }>();
+expectTypeOf<JazzAuthClient["getSession"]>().toBeFunction();
 describe("Better-Auth client plugin", () => {
   let account: Account;
   let jazzContextManager: TestJazzContextManager<Account>;
@@ -53,6 +58,16 @@ describe("Better-Auth client plugin", () => {
     }>
   >;
   let customFetchImpl = vi.fn();
+
+  it("preserves Jazz server plugin inference", () => {
+    const preservesJazzServerPlugin: NonNullable<
+      JazzPluginClient["$InferServerPlugin"]
+    > extends ReturnType<typeof jazzPlugin>
+      ? true
+      : false = true;
+
+    expect(preservesJazzServerPlugin).toBe(true);
+  });
 
   beforeEach(async () => {
     account = await setupJazzTestSync();

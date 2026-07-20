@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "lib": ["ESNext", "DOM"],
+    "module": "esnext",
+    "target": "ES2021",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "better-auth": ["../../node_modules/better-auth-1-6"],
+      "better-auth/*": ["../../node_modules/better-auth-1-6/*"]
+    }
+  },
+  "include": ["test-consumers/better-auth-1.6.ts"]
+}
