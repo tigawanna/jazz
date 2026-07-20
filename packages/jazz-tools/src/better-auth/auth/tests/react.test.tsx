@@ -29,11 +29,7 @@ describe("AuthProvider", () => {
     });
 
     render(
-      <JazzReactProvider
-        // @ts-expect-error - no memory storage
-        storage={["memory"]}
-        sync={{ peer: "ws://", when: "never" }}
-      >
+      <JazzReactProvider sync={{ peer: "ws://", when: "never" }}>
         <AuthProvider betterAuthClient={betterAuthClient}>
           <div data-testid="auth-provider" />
         </AuthProvider>

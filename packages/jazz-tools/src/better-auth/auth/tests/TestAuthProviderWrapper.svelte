@@ -14,7 +14,6 @@ let { betterAuthClient }: { betterAuthClient: AuthClient } = $props();
 </script>
 
 <JazzSvelteProvider
-  storage={["memory"] as any}
   sync={{ peer: "ws://", when: "never" }}
 >
   <AuthProvider {betterAuthClient}>
