@@ -5,7 +5,7 @@ import type {
   AuthSetPayload,
   JazzContextType,
 } from "jazz-tools";
-import type { jazzPlugin } from "./server.js";
+import type { JazzPluginSchema } from "./plugin-types.js";
 
 const SIGNUP_URLS = [
   "/sign-up",
@@ -21,7 +21,15 @@ type JazzPluginActions = {
   };
 };
 
-type JazzPluginClient = Omit<BetterAuthClientPlugin, "getActions"> & {
+type JazzServerPluginInference = JazzPluginSchema & {
+  id: "jazz-plugin";
+};
+
+type JazzPluginClient = Omit<
+  BetterAuthClientPlugin,
+  "getActions" | "$InferServerPlugin"
+> & {
+  $InferServerPlugin: JazzServerPluginInference;
   getActions: (
     ...args: Parameters<NonNullable<BetterAuthClientPlugin["getActions"]>>
   ) => JazzPluginActions;
@@ -56,7 +64,7 @@ export const jazzPluginClient = (): JazzPluginClient => {
 
   return {
     id: "jazz-plugin",
-    $InferServerPlugin: {} as ReturnType<typeof jazzPlugin>,
+    $InferServerPlugin: {} as JazzServerPluginInference,
     getActions: ($fetch, $store) => {
       return {
         jazz: {

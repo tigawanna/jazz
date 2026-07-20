@@ -17,7 +17,7 @@ import {
   vi,
 } from "vitest";
 import { jazzPluginClient } from "../client.js";
-import type { jazzPlugin } from "../server.js";
+import type { JazzPluginSchema } from "../plugin-types.js";
 import { emailOTPClient, genericOAuthClient } from "better-auth/client/plugins";
 
 type JazzPluginClient = ReturnType<typeof jazzPluginClient>;
@@ -62,7 +62,7 @@ describe("Better-Auth client plugin", () => {
   it("preserves Jazz server plugin inference", () => {
     const preservesJazzServerPlugin: NonNullable<
       JazzPluginClient["$InferServerPlugin"]
-    > extends ReturnType<typeof jazzPlugin>
+    > extends JazzPluginSchema
       ? true
       : false = true;
 

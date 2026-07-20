@@ -4,7 +4,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/svelte";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import AuthProvider from "../svelte.svelte";
 import { createAuthClient } from "better-auth/client";
 import { jazzPluginClient } from "../client";
@@ -26,8 +26,14 @@ describe("AuthProvider", () => {
   });
 
   it("should render with JazzSvelteProvider", async () => {
+    const customFetchImpl = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(null), {
+        headers: { "content-type": "application/json" },
+      }),
+    );
     const betterAuthClient = createAuthClient({
       plugins: [jazzPluginClient()],
+      fetchOptions: { customFetchImpl },
     });
 
     renderSvelte(TestAuthProviderWrapper, {
@@ -38,6 +44,8 @@ describe("AuthProvider", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("auth-provider")).toBeTruthy();
+      expect(customFetchImpl).toHaveBeenCalled();
+      expect(betterAuthClient.useSession.get().isPending).toBe(false);
     });
   });
 });

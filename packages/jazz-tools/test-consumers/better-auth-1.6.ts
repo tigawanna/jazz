@@ -8,4 +8,4 @@ const authClient = createAuthClient({
 authClient.getSession;
 authClient.jazz.setJazzContext;
 authClient.jazz.setAuthSecretStorage;
-authClient.useSession().data?.user.accountID;
+authClient.useSession.get().data?.user.accountID;

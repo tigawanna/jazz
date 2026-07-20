@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../react";
 import { createAuthClient } from "better-auth/client";
 import { jazzPluginClient } from "../client";
@@ -24,8 +24,14 @@ describe("AuthProvider", () => {
   });
 
   it("should render with JazzReactProvider", async () => {
+    const customFetchImpl = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(null), {
+        headers: { "content-type": "application/json" },
+      }),
+    );
     const betterAuthClient = createAuthClient({
       plugins: [jazzPluginClient()],
+      fetchOptions: { customFetchImpl },
     });
 
     render(
@@ -38,6 +44,8 @@ describe("AuthProvider", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("auth-provider")).toBeTruthy();
+      expect(customFetchImpl).toHaveBeenCalled();
+      expect(betterAuthClient.useSession.get().isPending).toBe(false);
     });
   });
 });

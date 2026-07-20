@@ -7,10 +7,11 @@
     "strict": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "baseUrl": ".",
     "paths": {
-      "better-auth": ["../../node_modules/better-auth-1-6"],
-      "better-auth/*": ["../../node_modules/better-auth-1-6/*"]
+      "better-auth": ["../../node_modules/better-auth-1-6/dist/index.d.mts"],
+      "better-auth/client": [
+        "../../node_modules/better-auth-1-6/dist/client/index.d.mts"
+      ]
     }
   },
   "include": ["test-consumers/better-auth-1.6.ts"]
