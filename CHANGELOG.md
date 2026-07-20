@@ -1,3 +1,8 @@
+Released Jazz 0.20.19:
+- Prevented unrecoverable session forking when a client crashes after transactions are sent to the sync server but before they are persisted locally. Sessions are now flagged while such a window is open, and the browser and React Native session providers mint a fresh session instead of reusing a flagged one.
+- Recovered from partially-written storage rows in async SQLite storage. Interrupted write transactions could leave orphan `transactions`/`signatureAfter` rows that made every subsequent store of the same session fail with "UNIQUE constraint failed: transactions.ses, transactions.idx"; those rows are now overwritten instead.
+- Serialized Expo SQLite transactions at the connection level. The adapter is shared across providers/contexts, so concurrent storage clients could nest `BEGIN` statements on the same connection, causing "cannot start a transaction within a transaction" and "cannot rollback - no transaction is active" errors during storage reconciliation.
+
 Released Jazz 0.20.16:
 - Fixed `InvalidSignature` errors when loading from storage with a concurrent writer. The storage load path read session metadata and transaction rows in separate non-transactional queries, and a concurrent write between the two reads could cause the query to pick up an extra row not covered by the signature.
 - Added cursor-based time travel for CoValues. Introduces the ability to create cursors (frontier snapshots) on loaded CoValues and later reload them at that exact point in time, enabling read-only historical views. Adds `createCursor()`, `cursor` getter, and support for loading CoValues by cursor via `load()` and `ensureLoaded()`.
