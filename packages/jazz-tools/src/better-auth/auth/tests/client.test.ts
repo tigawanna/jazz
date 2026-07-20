@@ -1,14 +1,44 @@
 import { createAuthClient } from "better-auth/client";
-import { Account, AuthSecretStorage } from "jazz-tools";
+import type { BetterAuthClientPlugin } from "better-auth";
+import type { Account, AuthSecretStorage, JazzContextType } from "jazz-tools";
 import {
   TestJazzContextManager,
   createJazzTestAccount,
   setActiveAccount,
   setupJazzTestSync,
 } from "jazz-tools/testing";
-import { assert, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  assert,
+  beforeEach,
+  describe,
+  expect,
+  expectTypeOf,
+  it,
+  vi,
+} from "vitest";
 import { jazzPluginClient } from "../client.js";
 import { emailOTPClient, genericOAuthClient } from "better-auth/client/plugins";
+
+type JazzPluginClient = ReturnType<typeof jazzPluginClient>;
+type BetterAuthGetActions = NonNullable<BetterAuthClientPlugin["getActions"]>;
+type BetterAuthFetchPlugins = NonNullable<
+  BetterAuthClientPlugin["fetchPlugins"]
+>;
+
+expectTypeOf<
+  Parameters<NonNullable<JazzPluginClient["getActions"]>>
+>().toEqualTypeOf<Parameters<BetterAuthGetActions>>();
+expectTypeOf<
+  NonNullable<JazzPluginClient["fetchPlugins"]>
+>().toEqualTypeOf<BetterAuthFetchPlugins>();
+expectTypeOf<
+  ReturnType<NonNullable<JazzPluginClient["getActions"]>>
+>().toMatchTypeOf<{
+  jazz: {
+    setJazzContext: (context: JazzContextType<Account>) => void;
+    setAuthSecretStorage: (storage: AuthSecretStorage) => void;
+  };
+}>();
 describe("Better-Auth client plugin", () => {
   let account: Account;
   let jazzContextManager: TestJazzContextManager<Account>;
