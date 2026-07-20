@@ -14,6 +14,19 @@ const SIGNUP_URLS = [
   "/email-otp/send-verification-otp",
 ];
 
+type JazzPluginActions = {
+  jazz: {
+    setJazzContext: (context: JazzContextType<Account>) => void;
+    setAuthSecretStorage: (storage: AuthSecretStorage) => void;
+  };
+};
+
+type JazzPluginClient = Omit<BetterAuthClientPlugin, "getActions"> & {
+  getActions: (
+    ...args: Parameters<NonNullable<BetterAuthClientPlugin["getActions"]>>
+  ) => JazzPluginActions;
+};
+
 /**
  * @example
  * ```ts
@@ -22,7 +35,7 @@ const SIGNUP_URLS = [
  * });
  * ```
  */
-export const jazzPluginClient = () => {
+export const jazzPluginClient = (): JazzPluginClient => {
   let jazzContext: JazzContextType<Account>;
   let authSecretStorage: AuthSecretStorage;
   let signOutUnsubscription: () => void;
@@ -188,5 +201,5 @@ export const jazzPluginClient = () => {
         },
       },
     ],
-  } satisfies BetterAuthClientPlugin;
+  } satisfies JazzPluginClient;
 };
