@@ -18,6 +18,6 @@ let { betterAuthClient }: { betterAuthClient: AuthClient } = $props();
   sync={{ peer: "ws://", when: "never" }}
 >
   <AuthProvider {betterAuthClient}>
-    <div></div>
+    <div data-testid="auth-provider"></div>
   </AuthProvider>
 </JazzSvelteProvider>

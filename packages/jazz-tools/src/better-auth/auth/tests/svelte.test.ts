@@ -1,5 +1,9 @@
 // @vitest-environment happy-dom
-import { render as renderSvelte } from "@testing-library/svelte";
+import {
+  render as renderSvelte,
+  screen,
+  waitFor,
+} from "@testing-library/svelte";
 import { describe, expect, it } from "vitest";
 import AuthProvider from "../svelte.svelte";
 import { createAuthClient } from "better-auth/client";
@@ -21,7 +25,7 @@ describe("AuthProvider", () => {
     }).toThrow("useJazzContext must be used within a JazzSvelteProvider");
   });
 
-  it("should render with JazzSvelteProvider", () => {
+  it("should render with JazzSvelteProvider", async () => {
     const betterAuthClient = createAuthClient({
       plugins: [jazzPluginClient()],
     });
@@ -30,6 +34,10 @@ describe("AuthProvider", () => {
       props: {
         betterAuthClient,
       },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("auth-provider")).toBeTruthy();
     });
   });
 });

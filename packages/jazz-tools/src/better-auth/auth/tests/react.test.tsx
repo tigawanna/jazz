@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { AuthProvider } from "../react";
 import { createAuthClient } from "better-auth/client";
@@ -23,7 +23,7 @@ describe("AuthProvider", () => {
     );
   });
 
-  it("should render with JazzReactProvider", () => {
+  it("should render with JazzReactProvider", async () => {
     const betterAuthClient = createAuthClient({
       plugins: [jazzPluginClient()],
     });
@@ -35,9 +35,13 @@ describe("AuthProvider", () => {
         sync={{ peer: "ws://", when: "never" }}
       >
         <AuthProvider betterAuthClient={betterAuthClient}>
-          <div />
+          <div data-testid="auth-provider" />
         </AuthProvider>
       </JazzReactProvider>,
     );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("auth-provider")).toBeTruthy();
+    });
   });
 });
