@@ -70,7 +70,9 @@
     <div class="mb-12 flex items-center justify-between">
       <div>
         <h1 class="mb-2 text-4xl font-bold text-gray-900">File Share</h1>
-        <h2 class="text-xl text-gray-600">Welcome back{#if me.current?.$isLoaded}, {me.current.profile.name}{/if}</h2>
+        <h2 class="text-xl text-gray-600">
+          Welcome back{#if me.current?.$isLoaded}, {me.current.profile.name}{/if}
+        </h2>
       </div>
 
       <button

@@ -38,4 +38,3 @@ export async function uniffiInitAsync() {
 export default {
   cojson_core_rn,
 };
-

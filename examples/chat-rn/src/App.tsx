@@ -38,7 +38,7 @@ function App() {
   >("ChatScreen");
   const navigationRef = useNavigationContainerRef();
   useEffect(() => {
-    Linking.getInitialURL().then((url) => {
+    Linking.getInitialURL().then(url => {
       if (url) {
         if (url && url.includes("invite")) {
           setInitialRoute("HandleInviteScreen");
@@ -52,8 +52,7 @@ function App() {
       <JazzReactNativeProvider
         sync={{
           peer: `wss://cloud.jazz.tools/?key=${apiKey}`,
-        }}
-      >
+        }}>
         <NavigationContainer ref={navigationRef} theme={theme}>
           <Stack.Navigator initialRouteName={initialRoute}>
             <Stack.Screen

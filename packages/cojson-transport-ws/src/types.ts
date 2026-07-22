@@ -1,5 +1,6 @@
 export interface WebsocketEvents {
   close: { code: number; reason: string };
+  error: unknown;
   message: { data: unknown };
   open: unknown;
 }

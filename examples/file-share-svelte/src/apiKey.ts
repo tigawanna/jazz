@@ -1,1 +1,1 @@
-export const apiKey = "file-share-svelte@garden.co"
+export const apiKey = 'file-share-svelte@garden.co';

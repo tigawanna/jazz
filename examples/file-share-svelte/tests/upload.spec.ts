@@ -41,25 +41,25 @@ test.beforeEach(async ({ context }) => {
 test('can login with passkey and upload file', async ({ page, browser }) => {
   // Navigate to the home page
   await page.goto('/');
-  
+
   // Click login and handle the passkey authentication
   await page.getByRole('textbox').fill('Capitan Hook');
-  await page.getByRole('button', { name: "Sign up" }).click();
-  
+  await page.getByRole('button', { name: 'Sign up' }).click();
+
   // Verify successful login by checking for user-specific element
-  await expect(page.getByText("File Share")).toBeVisible();
-  
+  await expect(page.getByText('File Share')).toBeVisible();
+
   // Prepare file upload
   const filePath = path.join(import.meta.dirname, 'fixtures/test-file.txt');
-  
+
   // Click upload button and handle file selection
   const fileChooserPromise = page.waitForEvent('filechooser');
   await page.getByRole('button', { name: /upload|add file/i }).click();
   const fileChooser = await fileChooserPromise;
   await fileChooser.setFiles(filePath);
-  
+
   // Verify the uploaded file appears in the list
-  await expect(page.getByRole("textbox", { name: "File name" })).toHaveValue("test-file.txt");
+  await expect(page.getByRole('textbox', { name: 'File name' })).toHaveValue('test-file.txt');
 
   await page.getByRole('button', { name: 'Share file' }).click();
   const inviteLink = await page.evaluate(() => navigator.clipboard.readText());
@@ -72,11 +72,11 @@ test('can login with passkey and upload file', async ({ page, browser }) => {
   await newUserPage.goto(`/`);
 
   await newUserPage.getByRole('textbox').fill('Mr. Smee');
-  await newUserPage.getByRole('button', { name: "Sign up" }).click();
+  await newUserPage.getByRole('button', { name: 'Sign up' }).click();
 
-  await expect(newUserPage.getByText("File Share")).toBeVisible();
+  await expect(newUserPage.getByText('File Share')).toBeVisible();
 
   await newUserPage.goto(inviteLink);
 
-  await expect(newUserPage.getByText("test-file.txt")).toBeVisible();
+  await expect(newUserPage.getByText('test-file.txt')).toBeVisible();
 });

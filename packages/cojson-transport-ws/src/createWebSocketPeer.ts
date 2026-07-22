@@ -136,8 +136,7 @@ export function createWebSocketPeer({
   function cleanup() {
     websocket.removeEventListener("message", handleIncomingMsg);
     websocket.removeEventListener("close", handleClose);
-    // Only some WebSocket implementations emit the error event, so we need to do casting to any to avoid type errors
-    websocket.removeEventListener("error" as any, handleError);
+    websocket.removeEventListener("error", handleError);
     pingTimeoutListener.clear();
     outgoing.drain();
   }
@@ -157,8 +156,7 @@ export function createWebSocketPeer({
   }
 
   websocket.addEventListener("close", handleClose);
-  // Only some WebSocket implementations emit the error event, so we need to do casting to any to avoid type errors
-  websocket.addEventListener("error" as any, handleError);
+  websocket.addEventListener("error", handleError);
 
   const pingTimeoutListener = createPingTimeoutListener(
     expectPings,

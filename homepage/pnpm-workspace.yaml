@@ -13,3 +13,5 @@ catalogs:
     "react-dom": "19.1.0"
     "@types/react": "19.1.0"
     "@types/react-dom": "19.1.0"
+  next:
+    next: 15.5.21

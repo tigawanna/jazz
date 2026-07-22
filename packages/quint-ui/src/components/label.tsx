@@ -1,7 +1,6 @@
 import { ComponentProps } from "react";
 import { VariantProps, tv } from "tailwind-variants";
-// biome-ignore lint/correctness/useImportExtensions: <explanation>
-import { cn } from "../lib/utils";
+import { cn } from "../lib/utils.js";
 
 type LabelVariants = VariantProps<typeof label>;
 

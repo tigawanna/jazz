@@ -63,11 +63,10 @@
       {#if isAdmin}
         <label class="sr-only" for={`file-name-${file.$jazz.id}`}>File name</label>
         <!-- Jazz values are reactive, but they are not recognized as reactive by Svelte -->
-        <!-- svelte-ignore binding_property_non_reactive -->
         <input
           class="w-full py-1 font-medium text-gray-900"
           type="text"
-          bind:value={() => file.name, newValue => file.$jazz.set("name", newValue)}
+          bind:value={() => file.name, (newValue) => file.$jazz.set('name', newValue)}
           id={`file-name-${file.$jazz.id}`}
         />
       {:else}

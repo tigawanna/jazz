@@ -10,15 +10,6 @@
   });
   const me = $derived(account.current);
 
-  let synced = $state(false);
-
-  const waitForSync = async () => {
-    if (me.$isLoaded) {
-      await me.profile.$jazz.waitForSync();
-      synced = true;
-    }
-  };
-
   const navigate = () => {
     if (me.$isLoaded) {
       goto(`/ssr/profile/${me.profile.$jazz.id}`);

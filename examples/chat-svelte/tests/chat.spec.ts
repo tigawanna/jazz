@@ -13,7 +13,6 @@ test('chat works between two windows', async ({ page: marioPage, browser }) => {
   const marioChat = new ChatPage(marioPage);
   const luigiChat = new ChatPage(luigiPage);
 
-
   await marioChat.setUsername('Mario');
 
   const message1ByMario = 'Hello Luigi, are you ready to save the princess?';

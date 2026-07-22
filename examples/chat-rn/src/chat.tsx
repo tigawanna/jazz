@@ -6,7 +6,6 @@ import {
   getLoadedOrUndefined,
   Group,
   ID,
-  ImageDefinition,
   LastAndAllCoMapEdits,
   Loaded,
 } from "jazz-tools";
@@ -46,12 +45,12 @@ export function ChatScreen({ navigation }: { navigation: any }) {
   const [imageUploading, setImageUploading] = useState(false);
   const spinAnim = useRef(new Animated.Value(0)).current;
 
-  function handleLogOut() {
-    setChatId(undefined);
-    logOut();
-  }
-
   useEffect(() => {
+    const handleLogOut = () => {
+      setChatId(undefined);
+      logOut();
+    };
+
     navigation.setOptions({
       headerRight: () => <Button onPress={handleLogOut} title="Logout" />,
       headerLeft: () =>
@@ -70,7 +69,7 @@ export function ChatScreen({ navigation }: { navigation: any }) {
           />
         ) : null,
     });
-  }, [navigation, loadedChat]);
+  }, [navigation, loadedChat, logOut]);
 
   useEffect(() => {
     let loop: Animated.CompositeAnimation | null = null;
@@ -96,7 +95,7 @@ export function ChatScreen({ navigation }: { navigation: any }) {
     return () => {
       loop?.stop();
     };
-  }, [imageUploading]);
+  }, [imageUploading, spinAnim]);
 
   const spin = spinAnim.interpolate({
     inputRange: [0, 1],
@@ -182,15 +181,13 @@ export function ChatScreen({ navigation }: { navigation: any }) {
         style={[
           styles.messageContainer,
           isMe ? styles.myMessage : styles.otherMessage,
-        ]}
-      >
+        ]}>
         {!isMe ? (
           <Text
             style={[
               styles.senderName,
               isMe ? styles.textRight : styles.textLeft,
-            ]}
-          >
+            ]}>
             {getEditorName(item?.$jazz.getEdits()?.text)}
           </Text>
         ) : null}
@@ -207,8 +204,7 @@ export function ChatScreen({ navigation }: { navigation: any }) {
             style={[
               styles.timestamp,
               !isMe ? styles.timestampOther : styles.timestampMy,
-            ]}
-          >
+            ]}>
             {item?.$jazz
               .getEdits()
               ?.text?.madeAt?.getHours()
@@ -234,7 +230,7 @@ export function ChatScreen({ navigation }: { navigation: any }) {
           <TextInput
             style={styles.usernameInput}
             value={getLoadedOrUndefined(profile)?.name ?? ""}
-            onChangeText={(value) => {
+            onChangeText={value => {
               if (profile?.$isLoaded) {
                 profile.$jazz.set("name", value);
               }
@@ -271,20 +267,19 @@ export function ChatScreen({ navigation }: { navigation: any }) {
             }}
             style={styles.messageList}
             data={loadedChat}
-            keyExtractor={(item) => item.$jazz.id}
+            keyExtractor={item => item.$jazz.id}
             renderItem={renderMessageItem}
           />
 
           <KeyboardAvoidingView
             keyboardVerticalOffset={110}
             behavior="padding"
-            style={styles.inputContainer}
-          >
+            style={styles.inputContainer}>
             <View style={styles.inputWrapper}>
               <TextInput
                 style={styles.messageInput}
                 value={imageUploading ? "Uploading..." : message}
-                onChangeText={imageUploading ? undefined : (v) => setMessage(v)}
+                onChangeText={imageUploading ? undefined : v => setMessage(v)}
                 placeholder={
                   imageUploading ? "Uploading..." : "Type a message..."
                 }
@@ -295,8 +290,7 @@ export function ChatScreen({ navigation }: { navigation: any }) {
               <TouchableOpacity
                 onPress={imageUploading ? undefined : sendPhoto}
                 style={styles.sendButton}
-                testID="send-photo-button"
-              >
+                testID="send-photo-button">
                 {imageUploading ? (
                   <Animated.Text style={{ transform: [{ rotate: spin }] }}>
                     ⌛
@@ -308,8 +302,7 @@ export function ChatScreen({ navigation }: { navigation: any }) {
               <TouchableOpacity
                 onPress={imageUploading ? undefined : sendMessage}
                 style={styles.sendButton}
-                testID="send-button"
-              >
+                testID="send-button">
                 <Text>↑</Text>
               </TouchableOpacity>
             </View>
