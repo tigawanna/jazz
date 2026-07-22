@@ -20,7 +20,13 @@ export class BrowserSessionProvider implements SessionProvider {
       // If the session crashed while it had sent-but-unpersisted transactions,
       // reusing it could fork the session's hash chain on the server.
       if (BrowserSessionDurabilityMarker.isSet(sessionID)) {
-        dirtySlot ??= { index, sessionID };
+        const sessionIsAbandoned = await tryToAcquireSession(
+          sessionID,
+          Promise.resolve(),
+        );
+        if (sessionIsAbandoned) {
+          dirtySlot ??= { index, sessionID };
+        }
         continue;
       }
 
