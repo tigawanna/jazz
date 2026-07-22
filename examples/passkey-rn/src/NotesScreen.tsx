@@ -48,7 +48,7 @@ export function NotesScreen({ navigation }: Props) {
       const notes = NoteList.create([], { owner: group });
       setNoteListId(notes.$jazz.id);
     }
-  }, [me]);
+  }, [me?.$isLoaded]);
 
   const noteList = useCoState(NoteList, noteListId ?? undefined, {
     resolve: { $each: { title: true, content: true } },
