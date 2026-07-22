@@ -25,8 +25,6 @@ export default defineProject({
     alias: {
       // Force source resolution for jazz-tools/svelte during tests
       "jazz-tools/svelte": resolve(__dirname, "./src/svelte/index.ts"),
-      // Force source resolution for jazz-tools/testing during tests
-      "jazz-tools/testing": resolve(__dirname, "./src/testing.ts"),
     },
   },
   test: {

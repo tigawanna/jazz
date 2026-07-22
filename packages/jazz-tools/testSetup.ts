@@ -1,4 +1,3 @@
-import "fake-indexeddb/auto";
 import { beforeEach } from "vitest";
 import { cojsonInternals } from "cojson";
 import { setDefaultValidationMode } from "./src/tools/implementation/zodSchema/validationSettings.ts";

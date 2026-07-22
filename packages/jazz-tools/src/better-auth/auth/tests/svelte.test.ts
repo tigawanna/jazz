@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import "fake-indexeddb/auto";
 import {
   render as renderSvelte,
   screen,
