@@ -406,6 +406,36 @@ describe("BrowserSessionProvider", () => {
   });
 
   describe("session durability marker", () => {
+    test("does not reclaim an active dirty session", async () => {
+      const accountID = account.$jazz.id;
+      const dirtySession = Crypto.newRandomSessionID(
+        accountID as unknown as RawAccountID,
+      ) as SessionID;
+      SessionIDStorage.storeSessionID(accountID, dirtySession, 0);
+      BrowserSessionDurabilityMarker.set(dirtySession);
+
+      const lockName = `load_session_${dirtySession}`;
+      mockLocks.set(lockName, {
+        mode: "exclusive",
+        release: () => {
+          mockLocks.delete(lockName);
+        },
+      });
+
+      const { sessionID, sessionDone } = await sessionProvider.acquireSession(
+        accountID,
+        Crypto as CryptoProvider,
+      );
+      const sessions = SessionIDStorage.getSessionsList(accountID);
+      const markerIsSet = BrowserSessionDurabilityMarker.isSet(dirtySession);
+
+      sessionDone();
+      mockLocks.delete(lockName);
+
+      expect(sessions).toEqual([dirtySession, sessionID]);
+      expect(markerIsSet).toBe(true);
+    });
+
     test("acquireSession skips a dirty session and reclaims its slot", async () => {
       const provider = new BrowserSessionProvider();
       const accountID = account.$jazz.id;
