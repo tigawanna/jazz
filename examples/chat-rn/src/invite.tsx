@@ -6,7 +6,7 @@ import { Chat } from "./schema";
 export function HandleInviteScreen({ navigation }: { navigation: any }) {
   useAcceptInviteNative({
     invitedObjectSchema: Chat,
-    onAccept: async (chatId) => {
+    onAccept: async chatId => {
       navigation.navigate("ChatScreen", { chatId });
     },
   });

@@ -2,7 +2,6 @@ import type { Account, AnonymousJazzAgent } from "jazz-tools";
 import { createApp, defineComponent, h } from "vue";
 import { JazzTestProvider } from "../testing";
 
-// biome-ignore lint/suspicious/noExplicitAny: Complex generic typing with Jazz framework internals
 export const withJazzTestSetup = <C extends (...args: any[]) => any>(
   composable: C,
   {
@@ -13,7 +12,6 @@ export const withJazzTestSetup = <C extends (...args: any[]) => any>(
     isAuthenticated?: boolean;
   } = {},
 ) => {
-  // biome-ignore lint/suspicious/noImplicitAnyLet: Not sure what the type is
   let result;
 
   const wrapper = defineComponent({

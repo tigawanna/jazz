@@ -10,7 +10,9 @@
   });
   const me = $derived(account.current);
 
-  const dateOfBirth = $derived(me.$isLoaded ? me.root.dateOfBirth.toISOString().split("T")[0] || "" : "");
+  const dateOfBirth = $derived(
+    me.$isLoaded ? me.root.dateOfBirth.toISOString().split("T")[0] || "" : "",
+  );
 
   function handleDateOfBirthChange(event: Event & { currentTarget: HTMLInputElement }) {
     if (me.$isLoaded && event.currentTarget.value) {
@@ -29,8 +31,7 @@
         placeholder="Enter your first name here..."
         class="border border-stone-300 rounded shadow-xs py-1 px-2 flex-1"
         bind:value={
-          () => me.profile.firstName,
-          newValue => me.profile.$jazz.set("firstName", newValue)
+          () => me.profile.firstName, (newValue) => me.profile.$jazz.set("firstName", newValue)
         }
       />
     </div>

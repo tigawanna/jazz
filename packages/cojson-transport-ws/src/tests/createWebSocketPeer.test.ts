@@ -90,10 +90,6 @@ function setup(opts: SetupOptions = {}) {
   return { mockWebSocket, peer, listeners, triggerEvent };
 }
 
-function serializeMessages(messages: SyncMessage[]) {
-  return messages.map((msg) => JSON.stringify(msg)).join("\n");
-}
-
 describe("createWebSocketPeer", () => {
   test("should create a peer with correct properties", () => {
     const { peer } = setup();

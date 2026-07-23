@@ -68,7 +68,9 @@ test("should manage branches correctly", async ({ page }) => {
   await expect(page.locator("text=Main branch")).toBeVisible();
 
   // Create a new branch
-  await page.getByRole("textbox", { name: "Create new branch:" }).fill("feature-branch");
+  await page
+    .getByRole("textbox", { name: "Create new branch:" })
+    .fill("feature-branch");
   await page.getByRole("button", { name: "Create Branch" }).click();
 
   // Check that we're now on the new branch
@@ -92,10 +94,14 @@ test("should manage branches correctly", async ({ page }) => {
   await expect(page.getByTestId("person-dog-name")).toContainText("Rex");
 
   // Create the feature branch again to test merge
-  await page.getByRole("textbox", { name: "Create new branch:" }).fill("feature-branch");
+  await page
+    .getByRole("textbox", { name: "Create new branch:" })
+    .fill("feature-branch");
   await page.getByRole("button", { name: "Create Branch" }).click();
 
-  await expect(page.getByTestId("branch-status")).toContainText("feature-branch");
+  await expect(page.getByTestId("branch-status")).toContainText(
+    "feature-branch",
+  );
 
   // Make changes on the branch
   await page.getByRole("textbox", { name: "Name" }).fill("Jane Branch");

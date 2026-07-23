@@ -19,4 +19,3 @@
     <SignInButton />
   {/if}
 </div>
-

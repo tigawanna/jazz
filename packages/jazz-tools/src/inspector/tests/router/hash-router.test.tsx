@@ -1,6 +1,12 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, renderHook, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  renderHook,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import React, { type PropsWithChildren } from "react";
 import { HashRouterProvider } from "../../router/hash-router.js";
 import { useRouter } from "../../router/context.js";
@@ -28,6 +34,7 @@ async function setHash(path: PageInfo[]) {
 
 describe("HashRouterProvider", () => {
   afterEach(async () => {
+    cleanup();
     setHash([]);
     expect(window.location.hash).toBe("#/");
   });
