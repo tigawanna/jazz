@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-import { render } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import "fake-indexeddb/auto";
+import { render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../react";
 import { createAuthClient } from "better-auth/client";
 import { jazzPluginClient } from "../client";
@@ -23,21 +24,29 @@ describe("AuthProvider", () => {
     );
   });
 
-  it("should render with JazzReactProvider", () => {
+  it("should render with JazzReactProvider", async () => {
+    const customFetchImpl = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(null), {
+        headers: { "content-type": "application/json" },
+      }),
+    );
     const betterAuthClient = createAuthClient({
       plugins: [jazzPluginClient()],
+      fetchOptions: { customFetchImpl },
     });
 
     render(
-      <JazzReactProvider
-        // @ts-expect-error - no memory storage
-        storage={["memory"]}
-        sync={{ peer: "ws://", when: "never" }}
-      >
+      <JazzReactProvider sync={{ peer: "ws://", when: "never" }}>
         <AuthProvider betterAuthClient={betterAuthClient}>
-          <div />
+          <div data-testid="auth-provider" />
         </AuthProvider>
       </JazzReactProvider>,
     );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("auth-provider")).toBeTruthy();
+      expect(customFetchImpl).toHaveBeenCalled();
+      expect(betterAuthClient.useSession.get().isPending).toBe(false);
+    });
   });
 });

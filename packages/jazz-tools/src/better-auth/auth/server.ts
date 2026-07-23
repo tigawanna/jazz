@@ -7,29 +7,12 @@ import {
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { symmetricDecrypt, symmetricEncrypt } from "better-auth/crypto";
 import type { Account, AuthCredentials, ID } from "jazz-tools";
+import type { JazzPluginSchema } from "./plugin-types.js";
 
 // Define a type to have user fields mapped in the better-auth instance
 // It should be automatic, but it needs an hard reference to BetterAuthPlugin type
 // in order to be exported as library.
-type JazzPlugin = BetterAuthPlugin & {
-  schema: {
-    user: {
-      fields: {
-        accountID: {
-          type: "string";
-          required: false;
-          input: false;
-        };
-        encryptedCredentials: {
-          type: "string";
-          required: false;
-          input: false;
-          returned: false;
-        };
-      };
-    };
-  };
-};
+type JazzPlugin = BetterAuthPlugin & JazzPluginSchema;
 
 /**
  * @returns The BetterAuth server plugin.
